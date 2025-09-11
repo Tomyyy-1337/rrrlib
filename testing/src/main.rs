@@ -3,6 +3,7 @@ use std::{fmt::Debug, thread::park, time::Duration};
 // use data_types::{prelude::*, si_units::{Distance, Frac, Meter, MeterPerSecond, Second, Si, Time}, vector::{self, Vector2}};
 use rust_ib2c::prelude::*;
 use data_types::prelude::*;
+use uom::si::force;
 
 fn main() {
     let length: Distance = Distance::meters(10.0);
@@ -31,6 +32,17 @@ fn main() {
     let sum = dist_vec + dist_vec2;
 
     println!("Distance Vector: {}, Scaled: {}, Sum: {}", dist_vec, dist_vec2, sum);
+
+    let voltage = Voltage::volts(12.0);
+    let current= Current::amperes(2.0);
+    let resistance= voltage / current;
+    println!("Voltage: {}, Current: {}, Resistance: {}", voltage, current, resistance);
+    let power: Power = voltage * current;
+    println!("Power: {}", power);
+    let energy: Energy = power * time;
+    println!("Energy: {}", energy);
+    let charge = Charge::coulombs(24.0);
+    println!("Charge: {}, Current from Charge/Time: {}", charge, charge / time);
 
     // let cycle_time = Duration::from_millis(1);
 
