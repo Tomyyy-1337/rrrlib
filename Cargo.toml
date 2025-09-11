@@ -1,0 +1,3 @@
+[workspace]
+resolver = "3"
+members = [ "data_types", "rust_ib2c", "testing"]
