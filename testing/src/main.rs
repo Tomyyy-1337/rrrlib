@@ -1,24 +1,70 @@
-use std::{fmt::Debug, thread::park, time::Duration};
+use std::{f64::consts::PI, fmt::Debug, thread::park, time::Duration};
 
 // use data_types::{prelude::*, si_units::{Distance, Frac, Meter, MeterPerSecond, Second, Si, Time}, vector::{self, Vector2}};
 use rust_ib2c::prelude::*;
-use data_types::prelude::*;
+use data_types::{prelude::*, rotations::{self, Rotation2D, Rotation3D}, vector::{self, Vector2, Vector3}};
+
 
 fn main() {
-    let uomlen = uom::si::f64::Length::new::<uom::si::length::meter>(10.0);
+    // let orientation = Rotation3D::from_euler_angles(0.0, 1.0, PI/2.0);
+    // let orientation2 = Rotation3D::from_euler_angles(0.0, -1.0, -PI/2.0);
+    // let vector = Vector3::new(1.0, 0.0, 0.0);
+    // let rotated_vector = orientation.rotate_vector(vector);
+    // let back_vector = orientation2.rotate_vector(rotated_vector);
+    // println!("Rotated Vector: {:?}", rotated_vector);
+    // println!("Back Vector: {:?}", back_vector);
+    let battery_energy = Energy::watt_hours(50.0);
+    let motor_power = Power::watts(360.0);
 
-    let length: Distance = Distance::meters(10.0);
-    let time: Time = Time::seconds(9.0);
-    let speed: Speed = length / time;
+    let operation_time = battery_energy / motor_power;
+    println!("With a battery energy of {} and motor power of {}, the operation time is {}", battery_energy, motor_power, operation_time);
+    let motor_voltage = Voltage::volts(36.0);
+    let motor_current = motor_power / motor_voltage;
+    let motor_resistance = motor_voltage / motor_current;
+    let efficiency = 0.5;
+    let loss = motor_power * (1.0 - efficiency);
+    let heat_capacity = HeatCapacity::joules_per_kelvin(100.0);
+    let mass = Mass::kilograms(2.0);
+    let temperature_rise = loss / heat_capacity;
+    let temperature_rise_per_second = loss / (mass * heat_capacity);
+    println!("Motor Voltage: {}, Current: {}, Resistance: {}", motor_voltage, motor_current, motor_resistance);
+    println!("Motor Power: {}, Loss: {}, Heat Capacity: {}, Temperature Rise: {}, Temperature Rise: {}", motor_power, loss, heat_capacity, temperature_rise, temperature_rise_per_second);
+    let delta_t = Time::seconds(10.0);
+    let total_temperature_rise = temperature_rise_per_second * delta_t;
+    println!("Total Temperature Rise after {}: {}", delta_t, total_temperature_rise);
+
+    let temperature = Temperature::celsius(25.0);
+    let c_val = temperature.as_celsius();
+    let k_val = temperature.as_kelvins();
+    println!("Temperature: {} °C = {} K", c_val, k_val);
+
+    let value = SiValue::meters(10.0);
+    let value2 = SiValue::seconds(10.0);
+    let frac = value / value2;
+    println!("Value: {}, Value2: {}, Frac: {}", value, value2, frac);
+
+
+    // voltage of lightvulb
+    let lightbulb_voltage = Voltage::volts(12.0);
+    let lightbulb_current = Current::amperes(2.0);
+    let lightbulb_resistance = lightbulb_voltage / lightbulb_current;
+    let lightbulb_power = lightbulb_voltage * lightbulb_current;
+    let energy_per_hours = lightbulb_power * Time::hours(1.0);
+    println!("Lightbulb Voltage: {}, Current: {}, Resistance: {}, Power: {}, Energy per hour: {}", 
+        lightbulb_voltage, lightbulb_current, lightbulb_resistance, lightbulb_power, energy_per_hours);
+
+    let length = Distance::meters(10.0);
+    let time = Time::seconds(9.0);
+    let speed = length / time;
     println!("Length: {}, Time: {}, Speed: {}", length, time, speed);
     let force = Force::newtons(10.0);
-    println!("Froce {}, inverse: {}, inverse_inverse: {}", force, 1.0/force, (1.0/force).inverse());
+    println!("Force {}, inverse: {}, inverse_inverse: {}", force, 1.0/force, (1.0/force).inverse());
 
     let whatever = length * time;
     println!("Whatever: {}", whatever);
     
-    let force: Force = Force::newtons(50.0);
-    let mass: Mass = Mass::metric_tons(5.0);
+    let force = Force::newtons(50.0);
+    let mass = Mass::metric_tons(5.0);
 
     let acceleration = force / mass;
     println!("Force: {}, Mass: {}, Acceleration: {}", force, mass, acceleration);
@@ -26,7 +72,7 @@ fn main() {
     let distance = acceleration * time * time / 2.0;
     println!("Distance traveled under constant acceleration: {}", distance);
 
-    let area: Area = length * length;
+    let area = length * length;
     let s = area.sqrt();
     println!("Square root of area {} is {}", area, s);
 
@@ -45,9 +91,9 @@ fn main() {
     let current= Current::amperes(2.0);
     let resistance= voltage / current;
     println!("Voltage: {}, Current: {}, Resistance: {}", voltage, current, resistance);
-    let power: Power = voltage * current;
+    let power = voltage * current;
     println!("Power: {}", power);
-    let energy: Energy = power * time;
+    let energy = power * time;
     println!("Energy: {}", energy);
     let charge = Charge::coulombs(24.0);
     println!("Charge: {}, Current from Charge/Time: {}", charge, charge / time);
@@ -59,6 +105,21 @@ fn main() {
     // BehaviorGroup::<MainGroup>::with_name("MainGroup", cycle_time);
 
     // park();
+}
+
+#[module] 
+struct DistanceSensor {
+    pub out_distance: SendPort<Distance>,
+}
+
+impl Module for DistanceSensor {
+    fn transfere(&mut self) {
+        self.out_distance.send(Distance::meters(1.23));
+    }
+
+    fn target_rating(&self) -> MetaSignal {
+        MetaSignal::HIGH
+    }
 }
 
 fn port_bench() {

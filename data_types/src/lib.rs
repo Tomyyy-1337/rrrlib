@@ -1,17 +1,17 @@
-pub mod position;
 pub mod vector;
 pub mod si_units;
+pub mod rotations;
 
 pub mod prelude {
-    pub use crate::position::{Position2D, Position3D, Position4D};
     pub use crate::vector::{Vector, Vector2, Vector3, Vector4};
     pub use crate::si_units::{
+        SiValue,
         Distance,
         Area,
         Volume,
         Time,
         Frequency,
-        Speed,
+        Velocity,
         Acceleration,
         Mass,
         Force,
@@ -19,6 +19,7 @@ pub mod prelude {
         Power,
         Torque,
         Momentum,
+        Pressure,
         Radian,
         AngularVelocity,
         AngularAcceleration,
@@ -26,9 +27,17 @@ pub mod prelude {
         Charge,
         Voltage,
         Resistance,
+        Conductance,
         Capacitance,
         Inductance,
         MagneticFlux,
-        MagneticFieldStrength
+        MagneticFieldStrength,
+        MagneticPermeability,
+        Temperature,
+        HeatCapacity,
+        SpecificHeatCapacity,
+        ThermalConductivity,
+        ThermalExpansionCoefficient,
+        HeatFluxDensity,
     };
 }

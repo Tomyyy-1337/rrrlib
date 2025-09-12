@@ -3,10 +3,60 @@ use std::{fmt::Display, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Mul, M
 pub type Vector2<T> = Vector<T, 2>;
 pub type Vector3<T> = Vector<T, 3>;
 pub type Vector4<T> = Vector<T, 4>;
+// pub type Position2D<T> = Vector<T, 2>;
+// pub type Position3D<T> = Vector<T, 3>;
+// pub type Position4D<T> = Vector<T, 4>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Vector<T: Default + Copy, const N: usize> {
     data: [T; N],
+}
+
+impl<T: Default + Copy> Vector2<T> {
+    pub fn cross(&self, other: Vector2<T>) -> T 
+    where 
+        T: Sub<Output = T> + Mul<Output = T> + Default + Copy
+    {
+        self.x() * other.y() - self.y() * other.x()
+    }
+}
+
+impl<T: Default + Copy> Vector3<T> {
+    pub fn cross(&self, other: Vector3<T>) -> Vector3<T> 
+    where 
+        T: Sub<Output = T> + Mul<Output = T> + Default + Copy
+    {
+        Vector3::new(
+            self.y() * other.z() - self.z() * other.y(),
+            self.z() * other.x() - self.x() * other.z(),
+            self.x() * other.y() - self.y() * other.x(),
+        )
+    }
+}
+
+impl<T: Default + Copy, const N: usize> Vector<T, N> {
+    pub fn as_array(&self) -> &[T; N] {
+        &self.data
+    }
+
+    pub fn as_mut_array(&mut self) -> &mut [T; N] {
+        &mut self.data
+    }
+
+    pub fn to_array(&self) -> [T; N] {
+        self.data
+    }
+
+    pub fn dot(&self, other: &Self) -> T 
+    where 
+        T: Add<Output = T> + Mul<Output = T> + Default + Copy
+    {
+        let mut result = T::default();
+        for i in 0..N {
+            result = result + (self.data[i] * other.data[i]);
+        }
+        result
+    }
 }
 
 impl<T: Default + Copy, S: Into<T>> From<(S, S)> for Vector<T, 2> {
