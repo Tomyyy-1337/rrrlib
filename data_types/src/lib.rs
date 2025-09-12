@@ -39,5 +39,14 @@ pub mod prelude {
         ThermalConductivity,
         ThermalExpansionCoefficient,
         HeatFluxDensity,
+        Mole,
+        MolarMass,
+        MolarConcentration,
+        MolarHeatCapacity,
+        CatalyticActivity,
+        LuminousIntensity,
+        LuminousFlux,
+        Luminance,
+        Density,
     };
 }

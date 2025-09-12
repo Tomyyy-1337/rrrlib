@@ -18,7 +18,6 @@ macro_rules! impl_unit_conversions {
         $(
             impl $unit {
                 $($(
-
                     pub const $const_name: Self = SiValue::new($const_value);
                 )*)?
                 
@@ -37,90 +36,154 @@ macro_rules! impl_unit_conversions {
 }
 
 macro_rules! match_type {
-    ($l:ty, $m:ty, $t:ty, $a:ty, $k:ty) => {
-        std::any::TypeId::of::<L>() == std::any::TypeId::of::<$l>()
-        && std::any::TypeId::of::<M>() == std::any::TypeId::of::<$m>()
-        && std::any::TypeId::of::<T>() == std::any::TypeId::of::<$t>()
-        && std::any::TypeId::of::<A>() == std::any::TypeId::of::<$a>()
-        && std::any::TypeId::of::<K>() == std::any::TypeId::of::<$k>()
+    ($l:ty, $m:ty, $t:ty, $a:ty, $k:ty, $mol:ty, $cd:ty) => {
+        L::to_i32() == <$l>::to_i32() &&
+        M::to_i32() == <$m>::to_i32() &&
+        T::to_i32() == <$t>::to_i32() &&
+        A::to_i32() == <$a>::to_i32() &&
+        K::to_i32() == <$k>::to_i32() &&
+        Mol::to_i32() == <$mol>::to_i32() &&
+        Cd::to_i32() == <$cd>::to_i32()
     };
 }    
 
 macro_rules! new_types {
     (
         $(
-            $name:ident, $symbol:expr => kg^$mass:ty, m^$length:ty, s^$time:ty, A^$current:ty, K^$kelvin:ty
+            $name:ident, $symbol:expr => kg^$mass:ty, m^$length:ty, s^$time:ty, A^$current:ty, K^$kelvin:ty, mol^$mol:ty, cd^$candela:ty
         ),* $(,)?
     ) => {
         $(
-            pub type $name = SiValue<$length, $mass, $time, $current, $kelvin>;
+            pub type $name = SiValue<$length, $mass, $time, $current, $kelvin, $mol, $candela>;
         )*
     
-        impl<L, M, T, A, K> SiValue<L, M, T, A, K>
+        impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd>
         where
             L: Integer,
             M: Integer,
             T: Integer,
             A: Integer,
             K: Integer,
+            Mol: Integer,
+            Cd: Integer,
         {
-            fn unit_symbol(&self) -> String {
+            fn unit_symbol(&self) -> Option<String> {
                 $(
-                    if match_type!($length, $mass, $time, $current, $kelvin) {
-                        if let Some::<&str>(symbol) = $symbol {
-                            return String::from(symbol);
-                        }
+                    if match_type!($length, $mass, $time, $current, $kelvin, $mol, $candela) {
+                        if let Some::<&str>(sym) = $symbol {
+                            return Some(sym.to_string());
+                        } 
                     }
                 )*
-                String::new()
+                None
             }
         }
     };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
-pub struct SiValue<L, M, T, A, K> {
+pub struct SiValue<Meter, Kg, Second, Ampere, Kelvin, Mol, Candela> {
     value: f64,
-    _type: PhantomData<(L, M, T, A, K)>,
+    _type: PhantomData<(Meter, Kg, Second, Ampere, Kelvin, Mol, Candela)>,
 }
 
 new_types!{
-    Distance,              Some("m")   => kg^Z0, m^P1, s^Z0, A^Z0, K^Z0, // m^1
-    Area,                  None        => kg^Z0, m^P2, s^Z0, A^Z0, K^Z0, // m^2
-    Volume,                None        => kg^Z0, m^P3, s^Z0, A^Z0, K^Z0, // m^3
-    Time,                  Some("s")   => kg^Z0, m^Z0, s^P1, A^Z0, K^Z0, // s^1
-    Frequency,             Some("Hz")  => kg^Z0, m^Z0, s^N1, A^Z0, K^Z0, // s^-1
-    Velocity,              None        => kg^Z0, m^P1, s^N1, A^Z0, K^Z0, // m^1 s^-1
-    Acceleration,          None        => kg^Z0, m^P1, s^N2, A^Z0, K^Z0, // m^1 s^-2
-    Mass,                  Some("kg")  => kg^P1, m^Z0, s^Z0, A^Z0, K^Z0, // kg^1
-    Force,                 Some("N")   => kg^P1, m^P1, s^N2, A^Z0, K^Z0, // kg^1 m^1 s^-2
-    Torque,                None        => kg^P1, m^P2, s^N2, A^Z0, K^Z0, // kg^1 m^2 s^-2
-    Energy,                Some("J")   => kg^P1, m^P2, s^N2, A^Z0, K^Z0, // kg^1 m^2 s^-2
-    Power,                 Some("W")   => kg^P1, m^P2, s^N3, A^Z0, K^Z0, // kg^1 m^2 s^-3
-    Momentum,              Some("N·s") => kg^P1, m^P1, s^N1, A^Z0, K^Z0, // kg^1 m^1 s^-1
-    Pressure,              Some("Pa")  => kg^P1, m^N1, s^N2, A^Z0, K^Z0, // kg^1 m^-1 s^-2
-    Radian,                None        => kg^Z0, m^Z0, s^Z0, A^Z0, K^Z0, // dimensionless
-    AngularVelocity,       None        => kg^Z0, m^Z0, s^N1, A^Z0, K^Z0, // s^-1
-    AngularAcceleration,   None        => kg^Z0, m^Z0, s^N2, A^Z0, K^Z0, // s^-2
-    Current,               Some("A")   => kg^Z0, m^Z0, s^Z0, A^P1, K^Z0, // A^1
-    Charge,                Some("C")   => kg^Z0, m^Z0, s^P1, A^P1, K^Z0, // A^1 s^1
-    Voltage,               Some("V")   => kg^P1, m^P2, s^N3, A^N1, K^Z0, // kg^1 m^2 s^-3 A^-1
-    Resistance,            Some("Ω")   => kg^P1, m^P2, s^N3, A^N2, K^Z0, // kg^1 m^2 s^-3 A^-2
-    Conductance,           Some("S")   => kg^N1, m^N2, s^P3, A^P2, K^Z0, // kg^-1 m^-2 s^3 A^2
-    Capacitance,           Some("F")   => kg^N1, m^N2, s^P4, A^N2, K^Z0, // kg^-1 m^-2 s^4 A^2
-    Inductance,            Some("H")   => kg^P1, m^P2, s^N2, A^N2, K^Z0, // kg^1 m^2 s^-2 A^-2
-    MagneticFlux,          Some("Wb")  => kg^P1, m^P2, s^N2, A^N1, K^Z0, // kg^1 m^2 s^-2 A^-1
-    MagneticFieldStrength, Some("T")   => kg^P1, m^Z0, s^N2, A^N1, K^Z0, // kg^1 s^-2 A^-1
-    MagneticPermeability,  Some("H/m") => kg^P1, m^P1, s^N2, A^N2, K^Z0, // kg^1 m^-1 s^-2 A^-2
-    Temperature,           Some("K")   => kg^Z0, m^Z0, s^Z0, A^Z0, K^P1, // K^1
-    HeatCapacity,          None        => kg^Z0, m^P2, s^N2, A^Z0, K^N1, // kg^2 s^-2 K^-1 
-    SpecificHeatCapacity,  None        => kg^N1, m^P2, s^N2, A^Z0, K^N1, // m^2 s^-2 K^-1
-    ThermalConductivity,   None        => kg^P1, m^P1, s^N3, A^Z0, K^N1, // kg^1 m^1 s^-3 K^-1
-    ThermalExpansionCoefficient, None  => kg^Z0, m^Z0, s^Z0, A^Z0, K^N1, // K^-1
-    HeatFluxDensity,       None        => kg^P1, m^Z0, s^N3, A^Z0, K^Z0, // kg^1 s^-3
+    Distance,              Some("m")   => kg^Z0, m^P1, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^1
+    Area,                  None        => kg^Z0, m^P2, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^2
+    Volume,                None        => kg^Z0, m^P3, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^3
+    Time,                  Some("s")   => kg^Z0, m^Z0, s^P1, A^Z0, K^Z0, mol^Z0, cd^Z0, // s^1
+    Frequency,             Some("Hz")  => kg^Z0, m^Z0, s^N1, A^Z0, K^Z0, mol^Z0, cd^Z0, // s^-1
+    Velocity,              None        => kg^Z0, m^P1, s^N1, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^1 s^-1
+    Acceleration,          None        => kg^Z0, m^P1, s^N2, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^1 s^-2
+    Mass,                  Some("kg")  => kg^P1, m^Z0, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1
+    Force,                 Some("N")   => kg^P1, m^P1, s^N2, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 m^1 s^-2
+    Torque,                None        => kg^P1, m^P2, s^N2, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 m^2 s^-2
+    Energy,                Some("J")   => kg^P1, m^P2, s^N2, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 m^2 s^-2
+    Power,                 Some("W")   => kg^P1, m^P2, s^N3, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 m^2 s^-3
+    Momentum,              Some("N·s") => kg^P1, m^P1, s^N1, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 m^1 s^-1
+    Pressure,              Some("Pa")  => kg^P1, m^N1, s^N2, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 m^-1 s^-2
+    Radian,                None        => kg^Z0, m^Z0, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // dimensionless
+    AngularVelocity,       None        => kg^Z0, m^Z0, s^N1, A^Z0, K^Z0, mol^Z0, cd^Z0, // s^-1
+    AngularAcceleration,   None        => kg^Z0, m^Z0, s^N2, A^Z0, K^Z0, mol^Z0, cd^Z0, // s^-2
+    Current,               Some("A")   => kg^Z0, m^Z0, s^Z0, A^P1, K^Z0, mol^Z0, cd^Z0, // A^1
+    Charge,                Some("C")   => kg^Z0, m^Z0, s^P1, A^P1, K^Z0, mol^Z0, cd^Z0, // A^1 s^1
+    Voltage,               Some("V")   => kg^P1, m^P2, s^N3, A^N1, K^Z0, mol^Z0, cd^Z0, // kg^1 m^2 s^-3 A^-1
+    Resistance,            Some("Ω")   => kg^P1, m^P2, s^N3, A^N2, K^Z0, mol^Z0, cd^Z0, // kg^1 m^2 s^-3 A^-2
+    Conductance,           Some("S")   => kg^N1, m^N2, s^P3, A^P2, K^Z0, mol^Z0, cd^Z0, // kg^-1 m^-2 s^3 A^2
+    Capacitance,           Some("F")   => kg^N1, m^N2, s^P4, A^N2, K^Z0, mol^Z0, cd^Z0, // kg^-1 m^-2 s^4 A^2
+    Inductance,            Some("H")   => kg^P1, m^P2, s^N2, A^N2, K^Z0, mol^Z0, cd^Z0, // kg^1 m^2 s^-2 A^-2
+    MagneticFlux,          Some("Wb")  => kg^P1, m^P2, s^N2, A^N1, K^Z0, mol^Z0, cd^Z0, // kg^1 m^2 s^-2 A^-1
+    MagneticFieldStrength, Some("T")   => kg^P1, m^Z0, s^N2, A^N1, K^Z0, mol^Z0, cd^Z0, // kg^1 s^-2 A^-1
+    MagneticPermeability,  Some("H/m") => kg^P1, m^P1, s^N2, A^N2, K^Z0, mol^Z0, cd^Z0, // kg^1 m^-1 s^-2 A^-2
+    Temperature,           Some("K")   => kg^Z0, m^Z0, s^Z0, A^Z0, K^P1, mol^Z0, cd^Z0, // K^1
+    HeatCapacity,          None        => kg^Z0, m^P2, s^N2, A^Z0, K^N1, mol^Z0, cd^Z0, // kg^2 s^-2 K^-1 
+    SpecificHeatCapacity,  None        => kg^N1, m^P2, s^N2, A^Z0, K^N1, mol^Z0, cd^Z0, // m^2 s^-2 K^-1
+    ThermalConductivity,   None        => kg^P1, m^P1, s^N3, A^Z0, K^N1, mol^Z0, cd^Z0, // kg^1 m^1 s^-3 K^-1
+    ThermalExpansionCoefficient, None  => kg^Z0, m^Z0, s^Z0, A^Z0, K^N1, mol^Z0, cd^Z0, // K^-1
+    HeatFluxDensity,       None        => kg^P1, m^Z0, s^N3, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 s^-3
+    Mole,                  Some("mol") => kg^Z0, m^Z0, s^Z0, A^Z0, K^Z0, mol^P1, cd^Z0, // mol^1
+    MolarMass,             None        => kg^P1, m^Z0, s^Z0, A^Z0, K^Z0, mol^N1, cd^Z0, // kg^1 mol^-1
+    MolarConcentration,    None        => kg^Z0, m^N3, s^Z0, A^Z0, K^Z0, mol^P1, cd^Z0, // m^-3 mol^1
+    MolarHeatCapacity,     None        => kg^P1, m^P2, s^N2, A^Z0, K^N1, mol^N1, cd^Z0, // m^2 s^-2 K^-1 mol^-1
+    CatalyticActivity,     None        => kg^Z0, m^Z0, s^N1, A^Z0, K^Z0, mol^P1, cd^Z0, // s^-1 mol^1
+    LuminousIntensity,     Some("cd")  => kg^Z0, m^Z0, s^Z0, A^Z0, K^Z0, mol^Z0, cd^P1, // cd^1
+    LuminousFlux,          None        => kg^Z0, m^Z0, s^Z0, A^Z0, K^Z0, mol^Z0, cd^P1, // cd^1 * sr (steradian, dimensionless)
+    Luminance,             Some("lx")  => kg^Z0, m^N2, s^Z0, A^Z0, K^Z0, mol^Z0, cd^P1, // cd^1 * sr / m^2
+    Density,               None        => kg^P1, m^N3, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1 m^-3
 }
 
 impl_unit_conversions!(
+    Density {
+        kilograms_per_cubic_meter , as_kilograms_per_cubic_meter => 1.0,
+        grams_per_cubic_centimeter , as_grams_per_cubic_centimeter => 1e3,
+        grams_per_liter , as_grams_per_liter => 1.0,
+        pounds_per_cubic_foot , as_pounds_per_cubic_foot => 16.0185,
+        pounds_per_gallon , as_pounds_per_gallon => 119.826
+    }
+    Luminance {
+        lux , as_lux => 1.0,
+        millilux , as_millilux => 1e-3,
+        kilolux , as_kilolux => 1e3
+    }
+    LuminousIntensity {
+        candelas , as_candelas => 1.0,
+        millicandelas , as_millicandelas => 1e-3,
+        kilocandelas , as_kilocandelas => 1e3
+    }
+    LuminousFlux {
+        lumens , as_lumens => 1.0,
+        millilumens , as_millilumens => 1e-3,
+        kilolumens , as_kilolumens => 1e3
+    }
+    Mole {
+        moles , as_moles => 1.0,
+        millimoles , as_millimoles => 1e-3,
+        kilomoles , as_kilomoles => 1e3
+    }
+    MolarMass {
+        kilograms_per_mole , as_kilograms_per_mole => 1.0,
+        grams_per_mole , as_grams_per_mole => 1e-3,
+        milligrams_per_mole , as_milligrams_per_mole => 1e-6
+    }
+    MolarConcentration {
+        moles_per_cubic_meter , as_moles_per_cubic_meter => 1.0,
+        millimoles_per_cubic_meter , as_millimoles_per_cubic_meter => 1e-3,
+        kilomoles_per_cubic_meter , as_kilomoles_per_cubic_meter => 1e3,
+        moles_per_liter , as_moles_per_liter => 1e3,
+        millimoles_per_liter , as_millimoles_per_liter => 1.0,
+        kilomoles_per_liter , as_kilomoles_per_liter => 1e6
+    }
+    MolarHeatCapacity {
+        joules_per_mole_kelvin , as_joules_per_mole_kelvin => 1.0,
+        kilojoules_per_mole_kelvin , as_kilojoules_per_mole_kelvin => 1e3,
+        calories_per_mole_kelvin , as_calories_per_mole_kelvin => 4.184,
+        kilocalories_per_mole_kelvin , as_kilocalories_per_mole_kelvin => 4.184e3
+    }
+    CatalyticActivity {
+        katal , as_katal => 1.0,
+        millikatal , as_millikatal => 1e-3,
+        microkatal , as_microkatal => 1e-6
+    }
     SpecificHeatCapacity {
         joules_per_kilogram_kelvin , as_joules_per_kilogram_kelvin => 1.0,
         kilojoules_per_kilogram_kelvin , as_kilojoules_per_kilogram_kelvin => 1e3,
@@ -304,7 +367,7 @@ impl_unit_conversions!(
     }
 );
 
-impl<L, M, T, A, K> SiValue<L, M, T, A, K> {
+impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd> {
     const fn new(value: f64) -> Self {
         Self {
             value,
@@ -317,26 +380,30 @@ impl<L, M, T, A, K> SiValue<L, M, T, A, K> {
     }
 }
 
-impl<L, M, T, A, K> SiValue<L, M, T, A, K>
+impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd>
 where
     L: Integer + Neg,
     M: Integer + Neg,
     T: Integer + Neg,
     A: Integer + Neg,
     K: Integer + Neg,
+    Mol: Integer + Neg,
+    Cd: Integer + Neg,
 {
-    pub fn inverse(self) -> SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>> {
+    pub fn inverse(self) -> SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>, Negate<Mol>, Negate<Cd>> {
         SiValue::new(1.0 / self.value)
     }
 }
 
-impl<L, M, T, A, K> SiValue<L, M, T, A, K>
+impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd>
 where
     L: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
     M: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
     T: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
     A: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
     K: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
+    Mol: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
+    Cd: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
 {
     pub fn sqrt(self) -> SiValue<
         typenum::Quot<L, typenum::P2>,
@@ -344,140 +411,153 @@ where
         typenum::Quot<T, typenum::P2>,
         typenum::Quot<A, typenum::P2>,
         typenum::Quot<K, typenum::P2>,
+        typenum::Quot<Mol, typenum::P2>,
+        typenum::Quot<Cd, typenum::P2>,
     > {
         SiValue::new(self.value.sqrt())
     }
 }
 
-impl<L, M, T, A, K> Add for SiValue<L, M, T, A, K> {
-    type Output = SiValue<L, M, T, A, K>;
+impl<L, M, T, A, K, Mol, Cd> Add for SiValue<L, M, T, A, K, Mol, Cd> {
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
-    fn add(self, rhs: SiValue<L, M, T, A, K>) -> Self::Output {
+    fn add(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
         SiValue::new(self.value + rhs.value)
     }
 }
 
-impl<L, M, T, A, K> AddAssign for SiValue<L, M, T, A, K> {
-    fn add_assign(&mut self, rhs: SiValue<L, M, T, A, K>) {
+impl<L, M, T, A, K, Mol, Cd> AddAssign for SiValue<L, M, T, A, K, Mol, Cd> {
+    fn add_assign(&mut self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) {
         self.value += rhs.value;
     }
 }
 
-impl<L, M, T, A, K> Sub for SiValue<L, M, T, A, K> {
-    type Output = SiValue<L, M, T, A, K>;
+impl<L, M, T, A, K, Mol, Cd> Sub for SiValue<L, M, T, A, K, Mol, Cd> {
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
-    fn sub(self, rhs: SiValue<L, M, T, A, K>) -> Self::Output {
+    fn sub(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
         SiValue::new(self.value - rhs.value)
     }
 }
 
-impl<L, M, T, A, K> SubAssign for SiValue<L, M, T, A, K> {
-    fn sub_assign(&mut self, rhs: SiValue<L, M, T, A, K>) {
+impl<L, M, T, A, K, Mol, Cd> SubAssign for SiValue<L, M, T, A, K, Mol, Cd> {
+    fn sub_assign(&mut self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) {
         self.value -= rhs.value;
     }
 }
 
-impl<L1, M1, T1, A1, K1, L2, M2, T2, A2, K2> Mul<SiValue<L2, M2, T2, A2, K2>> for SiValue<L1, M1, T1, A1, K1>
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Mul<SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
 where
     L1: Integer + std::ops::Add<L2>,
     M1: Integer + std::ops::Add<M2>,
     T1: Integer + std::ops::Add<T2>,
     A1: Integer + std::ops::Add<A2>,
     K1: Integer + std::ops::Add<K2>,
+    Mol1: Integer + std::ops::Add<Mol2>,
+    Cd1: Integer + std::ops::Add<Cd2>,
     L2: Integer,
     M2: Integer,
     T2: Integer,
     A2: Integer,
     K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
 {
-    type Output = SiValue<Sum<L1, L2>, Sum<M1, M2>, Sum<T1, T2>, Sum<A1, A2>, Sum<K1, K2>>;
+    type Output = SiValue<Sum<L1, L2>, Sum<M1, M2>, Sum<T1, T2>, Sum<A1, A2>, Sum<K1, K2>, Sum<Mol1, Mol2>, Sum<Cd1, Cd2>>;
 
-    fn mul(self, rhs: SiValue<L2, M2, T2, A2, K2>) -> Self::Output {
+    fn mul(self, rhs: SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
         SiValue::new(self.value * rhs.value)
     }
 }
 
-impl<L1, M1, T1, A1, K1, L2, M2, T2, A2, K2> Div<SiValue<L2, M2, T2, A2, K2>> for SiValue<L1, M1, T1, A1, K1>
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Div<SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
 where
     L1: Integer + std::ops::Sub<L2>,
     M1: Integer + std::ops::Sub<M2>,
     T1: Integer + std::ops::Sub<T2>,
     A1: Integer + std::ops::Sub<A2>,
     K1: Integer + std::ops::Sub<K2>,
+    Mol1: Integer + std::ops::Sub<Mol2>,
+    Cd1: Integer + std::ops::Sub<Cd2>,
     L2: Integer,
     M2: Integer,
     T2: Integer,
     A2: Integer,
     K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
 {
-    type Output = SiValue<Diff<L1, L2>, Diff<M1, M2>, Diff<T1, T2>, Diff<A1, A2>, Diff<K1, K2>>;
+    type Output = SiValue<Diff<L1, L2>, Diff<M1, M2>, Diff<T1, T2>, Diff<A1, A2>, Diff<K1, K2>, Diff<Mol1, Mol2>, Diff<Cd1, Cd2>>;
 
-    fn div(self, rhs: SiValue<L2, M2, T2, A2, K2>) -> Self::Output {
+    fn div(self, rhs: SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
         SiValue::new(self.value / rhs.value)
     }
 }
 
-impl<L, M, T, A, K> Mul<f64> for SiValue<L, M, T, A, K> {
-    type Output = SiValue<L, M, T, A, K>;
+impl<L, M, T, A, K, Mol, Cd> Mul<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
     fn mul(self, rhs: f64) -> Self::Output {
         SiValue::new(self.value * rhs)
     }
 }
 
-impl<L, M, T, A, K> Mul<SiValue<L, M, T, A, K>> for f64 {
-    type Output = SiValue<L, M, T, A, K>;
+impl<L, M, T, A, K, Mol, Cd> Mul<SiValue<L, M, T, A, K, Mol, Cd>> for f64 {
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
-    fn mul(self, rhs: SiValue<L, M, T, A, K>) -> Self::Output {
+    fn mul(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
         SiValue::new(self * rhs.value)
     }
 }
 
-impl<L, M, T, A, K> MulAssign<f64> for SiValue<L, M, T, A, K> {
+impl<L, M, T, A, K, Mol, Cd> MulAssign<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
     fn mul_assign(&mut self, rhs: f64) {
         self.value *= rhs;
     }
 }
 
-impl<L, M, T, A, K> Div<f64> for SiValue<L, M, T, A, K> {
-    type Output = SiValue<L, M, T, A, K>;
+impl<L, M, T, A, K, Mol, Cd> Div<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
     fn div(self, rhs: f64) -> Self::Output {
         SiValue::new(self.value / rhs)
     }
 }
 
-impl<L, M, T, A, K> Div<SiValue<L, M, T, A, K>> for f64 
-where 
+impl<L, M, T, A, K, Mol, Cd> Div<SiValue<L, M, T, A, K, Mol, Cd>> for f64
+where
     L: Integer + Neg,
     M: Integer + Neg,
     T: Integer + Neg,
     A: Integer + Neg,
     K: Integer + Neg,
+    Mol: Integer + Neg,
+    Cd: Integer + Neg,
 {
-    type Output = SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>>;
+    type Output = SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>, Negate<Mol>, Negate<Cd>>;
 
-    fn div(self, rhs: SiValue<L, M, T, A, K>) -> Self::Output {
+    fn div(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
         SiValue::new(self / rhs.value)
     }
 }
 
-impl<L, M, T, A, K> DivAssign<f64> for SiValue<L, M, T, A, K> {
+impl<L, M, T, A, K, Mol, Cd> DivAssign<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
     fn div_assign(&mut self, rhs: f64) {
         self.value /= rhs;
     }
 }
 
-impl<L, M, T, A, K> fmt::Display for SiValue<L, M, T, A, K>
+impl<L, M, T, A, K, Mol, Cd> fmt::Display for SiValue<L, M, T, A, K, Mol, Cd>
 where
     L: Integer,
     M: Integer,
     T: Integer,
     A: Integer,
     K: Integer,
+    Mol: Integer,
+    Cd: Integer,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Check for known types and use their symbols
         let unit_str = self.unit_str();
 
         if f64::abs(self.value) < 1e-4 || f64::abs(self.value) >= 1e6 {
@@ -488,81 +568,65 @@ where
     }
 }
 
-impl<L, M, T, A, K> SiValue<L, M, T, A, K>
+impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd>
 where
     L: Integer,
     M: Integer,
     T: Integer,
     A: Integer,
     K: Integer,
+    Mol: Integer,
+    Cd: Integer,
 {
     pub fn unit_str(&self) -> String {
-        let mut unit_str = self.unit_symbol();
-        if unit_str.is_empty() {
-            let l_exp = L::to_i64();
-            let m_exp = M::to_i64();
-            let t_exp = T::to_i64();
-            let a_exp = A::to_i64();
-            let k_exp = K::to_i64();
+        match self.unit_symbol() {
+            Some(s) => format!(" [{}]", s),
+            None => {
+                let l_exp = L::to_i32();
+                let m_exp = M::to_i32();
+                let t_exp = T::to_i32();
+                let a_exp = A::to_i32();
+                let k_exp = K::to_i32();
+                let mol_exp = Mol::to_i32();
+                let cd_exp = Cd::to_i32();
+                
+                
+                let mut numerator = Vec::new();
+                let mut denominator = Vec::new();
 
-            let mut numerator = Vec::new();
-            let mut denominator = Vec::new();
-
-            if m_exp > 0 {
-                numerator.push(format_unit("kg", m_exp));
-            } else if m_exp < 0 {
-                denominator.push(format_unit("kg", -m_exp));
+                let units = [("kg", m_exp), ("m", l_exp), ("s", t_exp), ("A", a_exp), ("K", k_exp), ("mol", mol_exp), ("cd", cd_exp)];
+                
+                for &(name, exp) in &units {
+                    if exp > 0 {
+                        numerator.push(format_unit(name, exp));
+                    } else if exp < 0 {
+                        denominator.push(format_unit(name, -exp));
+                    }
+                }
+                
+                match (numerator.len(), denominator.len()) {
+                    (0, 0) => "".to_string(),
+                    (_, 0) => format!(" [{}]", numerator.join("·")),
+                    (0, 1) => format!(" [1/{}]", denominator.join("·")),
+                    (0, _) => format!(" [1/({})]", denominator.join("·")),
+                    (1, 1) => format!(" [{}/{}]", numerator.join("·"), denominator.join("·")),
+                    (1, _) => format!(" [{}/({})]", numerator.join("·"), denominator.join("·")),
+                    (_, 1) => format!(" [({})/{}]", numerator.join("·"), denominator.join("·")),
+                    (_, _) => format!(" [({})/({})]", numerator.join("·"), denominator.join("·")),
+                }
             }
-
-            if l_exp > 0 {
-                numerator.push(format_unit("m", l_exp));
-            } else if l_exp < 0 {
-                denominator.push(format_unit("m", -l_exp));
-            }
-
-            if t_exp > 0 {
-                numerator.push(format_unit("s", t_exp));
-            } else if t_exp < 0 {
-                denominator.push(format_unit("s", -t_exp));
-            }
-
-            if a_exp > 0 {
-                numerator.push(format_unit("A", a_exp));
-            } else if a_exp < 0 {
-                denominator.push(format_unit("A", -a_exp));
-            }
-
-            if k_exp > 0 {
-                numerator.push(format_unit("K", k_exp));
-            } else if k_exp < 0 {
-                denominator.push(format_unit("K", -k_exp));
-            }
-
-            unit_str = match (numerator.len(), denominator.len()) {
-                (0, 0) => "".to_string(),
-                (_, 0) => format!(" [{}]", numerator.join("·")),
-                (0, 1) => format!(" [1/{}]", denominator.join("·")),
-                (0, _) => format!(" [1/({})]", denominator.join("·")),
-                (1, 1) => format!(" [{}/{}]", numerator.join("·"), denominator.join("·")),
-                (1, _) => format!(" [{}/({})]", numerator.join("·"), denominator.join("·")),
-                (_, 1) => format!(" [({})/{}]", numerator.join("·"), denominator.join("·")),
-                (_, _) => format!(" [({})/({})]", numerator.join("·"), denominator.join("·")),
-            };
-        } else {
-            unit_str = format!(" [{}]", unit_str);
         }
-        unit_str
     }
 }
 
-fn format_unit(name: &str, exp: i64) -> String {
+fn format_unit(name: &str, exp: i32) -> String {
     match exp {
         1 => format!("{}", name),
         _ => format!("{}{}", name, to_superscript(exp)),
     }
 }
 
-fn to_superscript(n: i64) -> String {
+fn to_superscript(n: i32) -> String {
     let digits = n.abs().to_string();
     let mut result = String::new();
     if n < 0 {

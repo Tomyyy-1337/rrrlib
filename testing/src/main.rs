@@ -3,7 +3,7 @@ use std::{f64::consts::PI, fmt::Debug, thread::park, time::Duration};
 // use data_types::{prelude::*, si_units::{Distance, Frac, Meter, MeterPerSecond, Second, Si, Time}, vector::{self, Vector2}};
 use rust_ib2c::prelude::*;
 use data_types::{prelude::*, rotations::{self, Rotation2D, Rotation3D}, vector::{self, Vector2, Vector3}};
-
+use uom::si::specific_heat_capacity;
 
 fn main() {
     // let orientation = Rotation3D::from_euler_angles(0.0, 1.0, PI/2.0);
@@ -23,8 +23,14 @@ fn main() {
     let motor_resistance = motor_voltage / motor_current;
     let efficiency = 0.5;
     let loss = motor_power * (1.0 - efficiency);
-    let heat_capacity = HeatCapacity::joules_per_kelvin(100.0);
-    let mass = Mass::kilograms(2.0);
+    
+    let specific_heat_capacity =  SpecificHeatCapacity::ALUMINIUM;
+    let side_length = Distance::meters(0.1);
+    let volume = side_length * side_length * side_length;
+    let density = Density::kilograms_per_cubic_meter(2700.0);
+    let mass = density * volume;
+    let heat_capacity = specific_heat_capacity * mass;
+    println!("Side Length: {}, Volume: {}, Density: {}, Mass: {}, Specific Heat Capacity: {}, Heat Capacity: {}", side_length, volume, density, mass, specific_heat_capacity, heat_capacity);
     let temperature_rise = loss / heat_capacity;
     let temperature_rise_per_second = loss / (mass * heat_capacity);
     println!("Motor Voltage: {}, Current: {}, Resistance: {}", motor_voltage, motor_current, motor_resistance);
@@ -59,9 +65,6 @@ fn main() {
     println!("Length: {}, Time: {}, Speed: {}", length, time, speed);
     let force = Force::newtons(10.0);
     println!("Force {}, inverse: {}, inverse_inverse: {}", force, 1.0/force, (1.0/force).inverse());
-
-    let whatever = length * time;
-    println!("Whatever: {}", whatever);
     
     let force = Force::newtons(50.0);
     let mass = Mass::metric_tons(5.0);
