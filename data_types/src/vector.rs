@@ -1,4 +1,4 @@
-use std::{fmt::Display, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}};
+use std::{fmt::Display, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}, path::Iter};
 
 pub type Vector2<T> = Vector<T, 2>;
 pub type Vector3<T> = Vector<T, 3>;
@@ -6,7 +6,7 @@ pub type Vector4<T> = Vector<T, 4>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Vector<T: Default + Copy, const N: usize> {
-    pub data: [T; N],
+    data: [T; N],
 }
 
 impl<T: Default + Copy, S: Into<T>> From<(S, S)> for Vector<T, 2> {
@@ -253,6 +253,15 @@ macro_rules! impl_vector_accessors {
             )*
         }
     };
+}
+
+impl<T: Default + Copy, const N: usize> IntoIterator for Vector<T, N> {
+    type Item = T;
+    type IntoIter = std::array::IntoIter<T, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
+    }
 }
 
 impl_vector_accessors!(

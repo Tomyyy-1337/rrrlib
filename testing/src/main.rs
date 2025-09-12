@@ -3,28 +3,36 @@ use std::{fmt::Debug, thread::park, time::Duration};
 // use data_types::{prelude::*, si_units::{Distance, Frac, Meter, MeterPerSecond, Second, Si, Time}, vector::{self, Vector2}};
 use rust_ib2c::prelude::*;
 use data_types::prelude::*;
-use uom::si::force;
 
 fn main() {
+    let uomlen = uom::si::f64::Length::new::<uom::si::length::meter>(10.0);
+
     let length: Distance = Distance::meters(10.0);
     let time: Time = Time::seconds(9.0);
     let speed: Speed = length / time;
     println!("Length: {}, Time: {}, Speed: {}", length, time, speed);
+    let force = Force::newtons(10.0);
+    println!("Froce {}, inverse: {}, inverse_inverse: {}", force, 1.0/force, (1.0/force).inverse());
+
     let whatever = length * time;
     println!("Whatever: {}", whatever);
     
     let force: Force = Force::newtons(50.0);
     let mass: Mass = Mass::metric_tons(5.0);
 
-    let acceleration: Acceleration = force / mass;
+    let acceleration = force / mass;
     println!("Force: {}, Mass: {}, Acceleration: {}", force, mass, acceleration);
 
     let distance = acceleration * time * time / 2.0;
     println!("Distance traveled under constant acceleration: {}", distance);
 
     let area: Area = length * length;
+    let s = area.sqrt();
+    println!("Square root of area {} is {}", area, s);
+
     let volume = area * length;
-    println!("Length: {}, Area: {}, Volume: {}", length, area, volume);
+    let hyper_volume = volume * length;
+    println!("Length: {}, Area: {}, Volume: {} HyperVolume: {}", length, area, volume, hyper_volume);
 
     let dist_vec = Vector2::new(Distance::meters(3.0), Distance::meters(4.0));
     let dist_vec2 = dist_vec * 2.0;

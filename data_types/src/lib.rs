@@ -19,6 +19,7 @@ pub mod prelude {
         Power,
         Torque,
         Momentum,
+        Radian,
         AngularVelocity,
         AngularAcceleration,
         Current,

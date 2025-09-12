@@ -1,8 +1,8 @@
 use core::fmt;
 
 use std::{marker::PhantomData};
-use std::ops::{Add, Div, DivAssign, Mul, MulAssign, Sub};
-use typenum::{Diff, Integer, Sum, N1, N2, N3, P1, P2, P3, P4, Z0};
+use std::ops::{Add, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub};
+use typenum::{Diff, Integer, Negate, Sum, N1, N2, N3, P1, P2, P3, P4, Z0};
 
 macro_rules! impl_unit_conversions {
     (
@@ -28,89 +28,47 @@ macro_rules! impl_unit_conversions {
     };
 }
 
+macro_rules! match_type {
+    ($l:ty, $m:ty, $t:ty, $a:ty) => {
+        std::any::TypeId::of::<L>() == std::any::TypeId::of::<$l>()
+        && std::any::TypeId::of::<M>() == std::any::TypeId::of::<$m>()
+        && std::any::TypeId::of::<T>() == std::any::TypeId::of::<$t>()
+        && std::any::TypeId::of::<A>() == std::any::TypeId::of::<$a>()
+    };
+}    
+
 macro_rules! new_types {
     (
         $(
-            $name:ident, $symbol:literal => kg^$mass:ty, m^$length:ty, s^$time:ty, A^$current:ty
+            $name:ident, $symbol:expr => kg^$mass:ty, m^$length:ty, s^$time:ty, A^$current:ty
         ),* $(,)?
     ) => {
         $(
             pub type $name = SiValue<$length, $mass, $time, $current>;
         )*
-
-                
-        impl<L, M, T, A> fmt::Display for SiValue<L, M, T, A>
+    
+        impl<L, M, T, A> SiValue<L, M, T, A>
         where
             L: Integer,
             M: Integer,
             T: Integer,
             A: Integer,
         {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                // Check for known types and use their symbols
-                let mut unit_str = String::new();
-                    // Helper macro to match type parameters
-                macro_rules! match_type {
-                    ($l:ty, $m:ty, $t:ty, $a:ty) => {
-                        std::any::TypeId::of::<L>() == std::any::TypeId::of::<$l>()
-                        && std::any::TypeId::of::<M>() == std::any::TypeId::of::<$m>()
-                        && std::any::TypeId::of::<T>() == std::any::TypeId::of::<$t>()
-                        && std::any::TypeId::of::<A>() == std::any::TypeId::of::<$a>()
-                    };
-                }         
+            fn unit_symbol(&self) -> String {
+                let mut unit_str = String::new();   
 
-                $(
-                    if match_type!($length, $mass, $time, $current) {
-                        unit_str = format!(" [{}]", $symbol);
-                    }
-                )*
-
-                if unit_str.is_empty() {
-                    let l_exp = L::to_i64();
-                    let m_exp = M::to_i64();
-                    let t_exp = T::to_i64();
-                    let a_exp = A::to_i64();
-
-                    let mut numerator = Vec::new();
-                    let mut denominator = Vec::new();
-
-                    if l_exp > 0 {
-                        numerator.push(format_unit("m", l_exp));
-                    } else if l_exp < 0 {
-                        denominator.push(format_unit("m", -l_exp));
-                    }
-
-                    if m_exp > 0 {
-                        numerator.push(format_unit("kg", m_exp));
-                    } else if m_exp < 0 {
-                        denominator.push(format_unit("kg", -m_exp));
-                    }
-
-                    if t_exp > 0 {
-                        numerator.push(format_unit("s", t_exp));
-                    } else if t_exp < 0 {
-                        denominator.push(format_unit("s", -t_exp));
-                    }
-
-                    if a_exp > 0 {
-                        numerator.push(format_unit("A", a_exp));
-                    } else if a_exp < 0 {
-                        denominator.push(format_unit("A", -a_exp));
-                    }
-
-                    unit_str = match (numerator.len(), denominator.len()) {
-                        (0, 0) => "".to_string(),
-                        (_, 0) => format!(" [{}]", numerator.join("·")),
-                        (0, _) => format!(" [1/{}]", denominator.join("·")),
-                        (_, _) => format!(" [{}/{}]", numerator.join("·"), denominator.join("·")),
-                    };
+                'match_scope: {
+                    $(
+                        if match_type!($length, $mass, $time, $current) {
+                            if let Some::<&str>(symbol) = $symbol {
+                                unit_str = format!(" [{}]", symbol);
+                                break 'match_scope;
+                            }
+                        }
+                    )*
                 }
 
-                if f64::abs(self.value) < 1e-4 || f64::abs(self.value) >= 1e4 {
-                    write!(f, "{:.5e}{}", self.value, unit_str)
-                } else {
-                    write!(f, "{}{}", self.value, unit_str)
-                }
+                return unit_str;
             }
         }
     };
@@ -123,32 +81,37 @@ pub struct SiValue<L, M, T, A> {
 }
 
 new_types!{
-    Distance, "m" => kg^Z0, m^P1, s^Z0, A^Z0,
-    Area, "m²" => kg^Z0, m^P2, s^Z0, A^Z0,
-    Volume, "m³" => kg^Z0, m^P3, s^Z0, A^Z0,
-    Time, "s" => kg^Z0, m^Z0, s^P1, A^Z0,
-    Frequency, "Hz" => kg^Z0, m^Z0, s^N1, A^Z0,
-    Speed, "m/s" => kg^Z0, m^P1, s^N1, A^Z0,
-    Acceleration, "m/s²" => kg^Z0, m^P1, s^N2, A^Z0,
-    Mass, "kg" => kg^P1, m^Z0, s^Z0, A^Z0,
-    Force, "N" => kg^P1, m^P1, s^N2, A^Z0,
-    Torque, "Nm" => kg^P1, m^P2, s^N2, A^Z0,
-    Energy, "J" => kg^P1, m^P2, s^N2, A^Z0,
-    Power, "W" => kg^P1, m^P2, s^N3, A^Z0,
-    Momentum, "N·s" => kg^P1, m^P1, s^N1, A^Z0,
-    AngularVelocity, "rad/s" => kg^Z0, m^Z0, s^N1, A^Z0,
-    AngularAcceleration, "rad/s²" => kg^Z0, m^Z0, s^N2, A^Z0,
-    Current, "A" => kg^Z0, m^Z0, s^Z0, A^P1,
-    Charge, "C" => kg^Z0, m^Z0, s^P1, A^P1,
-    Voltage, "V" => kg^P1, m^P2, s^N3, A^N1,
-    Resistance, "Ω" => kg^P1, m^P2, s^N3, A^N2,
-    Capacitance, "F" => kg^N1, m^N2, s^P4, A^N2,
-    Inductance, "H" => kg^P1, m^P2, s^N2, A^N2,
-    MagneticFlux, "Wb" => kg^P1, m^P2, s^N2, A^N1,
-    MagneticFieldStrength, "T" => kg^P1, m^Z0, s^N2, A^N1
+    Distance,              Some("m")   => kg^Z0, m^P1, s^Z0, A^Z0, // m^1
+    Area,                  None        => kg^Z0, m^P2, s^Z0, A^Z0, // m^2
+    Volume,                None        => kg^Z0, m^P3, s^Z0, A^Z0, // m^3
+    Time,                  Some("s")   => kg^Z0, m^Z0, s^P1, A^Z0, // s^1
+    Frequency,             Some("Hz")  => kg^Z0, m^Z0, s^N1, A^Z0, // s^-1
+    Speed,                 None        => kg^Z0, m^P1, s^N1, A^Z0, // m^1 s^-1
+    Acceleration,          None        => kg^Z0, m^P1, s^N2, A^Z0, // m^1 s^-2
+    Mass,                  Some("kg")  => kg^P1, m^Z0, s^Z0, A^Z0, // kg^1
+    Force,                 Some("N")   => kg^P1, m^P1, s^N2, A^Z0, // kg^1 m^1 s^-2
+    Torque,                Some("Nm")  => kg^P1, m^P2, s^N2, A^Z0, // kg^1 m^2 s^-2
+    Energy,                None        => kg^P1, m^P2, s^N2, A^Z0, // kg^1 m^2 s^-2
+    Power,                 Some("W")   => kg^P1, m^P2, s^N3, A^Z0, // kg^1 m^2 s^-3
+    Momentum,              Some("N·s") => kg^P1, m^P1, s^N1, A^Z0, // kg^1 m^1 s^-1
+    Radian,                None        => kg^Z0, m^Z0, s^Z0, A^Z0, // dimensionless
+    AngularVelocity,       None        => kg^Z0, m^Z0, s^N1, A^Z0, // s^-1
+    AngularAcceleration,   None        => kg^Z0, m^Z0, s^N2, A^Z0, // s^-2
+    Current,               Some("A")   => kg^Z0, m^Z0, s^Z0, A^P1, // A^1
+    Charge,                Some("C")   => kg^Z0, m^Z0, s^P1, A^P1, // A^1 s^1
+    Voltage,               Some("V")   => kg^P1, m^P2, s^N3, A^N1, // kg^1 m^2 s^-3 A^-1
+    Resistance,            Some("Ω")   => kg^P1, m^P2, s^N3, A^N2, // kg^1 m^2 s^-3 A^-2
+    Capacitance,           Some("F")   => kg^N1, m^N2, s^P4, A^N2, // kg^-1 m^-2 s^4 A^2
+    Inductance,            Some("H")   => kg^P1, m^P2, s^N2, A^N2, // kg^1 m^2 s^-2 A^-2
+    MagneticFlux,          Some("Wb")  => kg^P1, m^P2, s^N2, A^N1, // kg^1 m^2 s^-2 A^-1
+    MagneticFieldStrength, Some("T")   => kg^P1, m^Z0, s^N2, A^N1, // kg^1 s^-2 A^-1
 }
 
 impl_unit_conversions!(
+    Radian {
+        radians , as_radians => 1.0,
+        degrees , as_degrees => std::f64::consts::PI / 180.0
+    }
     Inductance {
         henrys , as_henrys => 1.0,
         millihenrys , as_millihenrys => 1e-3,
@@ -203,7 +166,6 @@ impl_unit_conversions!(
     }
     AngularAcceleration {
         radians_per_second_squared , as_radians_per_second_squared => 1.0,
-        revolutions_per_minute_squared , as_revolutions_per_minute_squared => 2.0 * std::f64::consts::PI / 60.0 / 60.0
     }
     Torque {
         newton_meters , as_newton_meters => 1.0,
@@ -287,6 +249,39 @@ impl<L, M, T, A> SiValue<L, M, T, A> {
             value,
             _type: PhantomData,
         }
+    }
+
+    pub fn as_value_in_base_units(&self) -> f64 {
+        self.value
+    }
+}
+
+impl<L, M, T, A> SiValue<L, M, T, A>
+where
+    L: Integer + Neg,
+    M: Integer + Neg,
+    T: Integer + Neg,
+    A: Integer + Neg,
+{
+    pub fn inverse(self) -> SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>> {
+        SiValue::new(1.0 / self.value)
+    }
+}
+
+impl<L, M, T, A> SiValue<L, M, T, A>
+where
+    L: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
+    M: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
+    T: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
+    A: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
+{
+    pub fn sqrt(self) -> SiValue<
+        typenum::Quot<L, typenum::P2>,
+        typenum::Quot<M, typenum::P2>,
+        typenum::Quot<T, typenum::P2>,
+        typenum::Quot<A, typenum::P2>,
+    > {
+        SiValue::new(self.value.sqrt())
     }
 }
 
@@ -372,8 +367,14 @@ impl<L, M, T, A> Div<f64> for SiValue<L, M, T, A> {
     }
 }
 
-impl<L, M, T, A> Div<SiValue<L, M, T, A>> for f64 {
-    type Output = SiValue<L, M, T, A>;
+impl<L, M, T, A> Div<SiValue<L, M, T, A>> for f64 
+where 
+    L: Integer + Neg,
+    M: Integer + Neg,
+    T: Integer + Neg,
+    A: Integer + Neg,
+{
+    type Output = SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>>;
 
     fn div(self, rhs: SiValue<L, M, T, A>) -> Self::Output {
         SiValue::new(self / rhs.value)
@@ -386,9 +387,109 @@ impl<L, M, T, A> DivAssign<f64> for SiValue<L, M, T, A> {
     }
 }
 
+impl<L, M, T, A> fmt::Display for SiValue<L, M, T, A>
+where
+    L: Integer,
+    M: Integer,
+    T: Integer,
+    A: Integer,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Check for known types and use their symbols
+        let unit_str = self.unit_str();
+
+        if f64::abs(self.value) < 1e-4 || f64::abs(self.value) >= 1e4 {
+            write!(f, "{:.5e}{}", self.value, unit_str)
+        } else {
+            write!(f, "{}{}", self.value, unit_str)
+        }
+    }
+}
+
+impl<L, M, T, A> SiValue<L, M, T, A>
+where
+    L: Integer,
+    M: Integer,
+    T: Integer,
+    A: Integer,
+{
+    pub fn unit_str(&self) -> String {
+        let mut unit_str = self.unit_symbol();
+        if unit_str.is_empty() {
+            let l_exp = L::to_i64();
+            let m_exp = M::to_i64();
+            let t_exp = T::to_i64();
+            let a_exp = A::to_i64();
+
+            let mut numerator = Vec::new();
+            let mut denominator = Vec::new();
+
+            if m_exp > 0 {
+                numerator.push(format_unit("kg", m_exp));
+            } else if m_exp < 0 {
+                denominator.push(format_unit("kg", -m_exp));
+            }
+
+            if l_exp > 0 {
+                numerator.push(format_unit("m", l_exp));
+            } else if l_exp < 0 {
+                denominator.push(format_unit("m", -l_exp));
+            }
+
+            if t_exp > 0 {
+                numerator.push(format_unit("s", t_exp));
+            } else if t_exp < 0 {
+                denominator.push(format_unit("s", -t_exp));
+            }
+
+            if a_exp > 0 {
+                numerator.push(format_unit("A", a_exp));
+            } else if a_exp < 0 {
+                denominator.push(format_unit("A", -a_exp));
+            }
+
+            unit_str = match (numerator.len(), denominator.len()) {
+                (0, 0) => "".to_string(),
+                (_, 0) => format!(" [{}]", numerator.join("·")),
+                (0, 1) => format!(" [1/{}]", denominator.join("·")),
+                (0, _) => format!(" [1/({})]", denominator.join("·")),
+                (1, 1) => format!(" [{}/{}]", numerator.join("·"), denominator.join("·")),
+                (1, _) => format!(" [{}/({})]", numerator.join("·"), denominator.join("·")),
+                (_, 1) => format!(" [({})/{}]", numerator.join("·"), denominator.join("·")),
+                (_, _) => format!(" [({})/({})]", numerator.join("·"), denominator.join("·")),
+            };
+        }
+        unit_str
+    }
+}
+
 fn format_unit(name: &str, exp: i64) -> String {
     match exp {
         1 => format!("{}", name),
-        _ => format!("{}^{}", name, exp),
+        _ => format!("{}{}", name, to_superscript(exp)),
     }
+}
+
+fn to_superscript(n: i64) -> String {
+    let digits = n.abs().to_string();
+    let mut result = String::new();
+    if n < 0 {
+        result.push('⁻');
+    }
+    for c in digits.chars() {
+        result.push(match c {
+            '0' => '⁰',
+            '1' => '¹',
+            '2' => '²',
+            '3' => '³',
+            '4' => '⁴',
+            '5' => '⁵',
+            '6' => '⁶',
+            '7' => '⁷',
+            '8' => '⁸',
+            '9' => '⁹',
+            _ => c,
+        });
+    }
+    result
 }
