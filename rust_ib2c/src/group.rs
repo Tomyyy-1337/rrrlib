@@ -1,4 +1,4 @@
-use std::{ops::{Deref, DerefMut}};
+use std::{hash::Hash, ops::{Deref, DerefMut}};
 
 use crate::{prelude::*};
 
@@ -34,11 +34,22 @@ impl<M> BehaviorGroup<M>
 where
     M: Group + Default + Send + 'static
 {
-    /// Creates a new behavior group with the given name and cycle time.
-    pub fn with_name(name: &str, cycle_time: std::time::Duration) -> Self {
+    /// Creates a new behavior group with the given name and cycle time from a parent module or group.
+    pub fn with_name(name: &str, cycle_time: std::time::Duration, parent: &str) -> Self {
         println!("Initializing BehaviorGroup: {}", name);
         let mut group = M::default();
-        group.init(cycle_time);
+        let path = format!("{}/{}", parent, name);
+        group.init(cycle_time, &path);
+        Self {
+            module: group,
+        }
+    }
+
+    /// Creates a new main behavior group with the given name and cycle time.
+    pub fn main_group(name: &str, cycle_time: std::time::Duration) -> Self {
+        println!("Initializing  Main BehaviorGroup: {}", name);
+        let mut group = M::default();
+        group.init(cycle_time, name);
         Self {
             module: group,
         }

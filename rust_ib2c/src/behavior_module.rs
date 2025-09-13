@@ -11,6 +11,7 @@ where
     pub module: M,
     cycle_time: std::time::Duration,
     last_update: std::time::Instant,
+    path: String,
 }
 
 impl<M> DerefMut for BehaviorModule<M> 
@@ -38,12 +39,13 @@ where
     M: Module + Send + 'static
 {
     /// Creates a new behavior module with the given name and cycle time.
-    pub fn with_name(name: &str, cycle_time: std::time::Duration) -> Self {
+    pub fn with_name(name: &str, cycle_time: std::time::Duration, parent: &str) -> Self {
         Self {
             name: name.to_string(),
             module: M::init(),
             cycle_time,
             last_update: std::time::Instant::now(),
+            path: format!("{}/{}", parent, name),
         }
     }
 
@@ -77,6 +79,12 @@ where
                 self.set_target_rating(target_rating);
 
                 let elapsed = start.elapsed();
+
+                // only active with compiler flag "print_state"
+                if cfg!(feature = "print_state") {
+                    eprintln!("(Module) Elapsed time: {:6?} Activity: {} Target Rating: {} Stimulation: {} Inhibition: {} Path: {}", 
+                        elapsed, self.get_activity().unwrap_or(MetaSignal::LOW), target_rating, stimulation, inhibition, self.path);   
+                }
 
                 if elapsed < self.cycle_time {
                     std::thread::sleep(self.cycle_time - elapsed);

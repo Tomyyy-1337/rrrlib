@@ -22,7 +22,7 @@ pub struct Model {
 pub fn model(app: &App) -> Model {
     let _window = app.new_window().view(view).build().unwrap();
 
-    let control_system = BehaviorGroup::<ControlSystem>::with_name("ControlSystem", Duration::from_millis(10));
+    let control_system = BehaviorGroup::<ControlSystem>::main_group("ControlSystem", Duration::from_millis(10));
 
     Model {
         _window,

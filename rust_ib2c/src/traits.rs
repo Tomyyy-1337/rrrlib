@@ -12,7 +12,7 @@ pub trait Module: UpdateReceivePorts + MetaSignals + Default {
 
 /// Module trait for groups of behavior modules. Can be spawned using the [`BehaviorGroup`] struct.
 pub trait Group: MetaSignals + UpdateReceivePorts + Default {
-    fn init(&mut self, cycle_time: std::time::Duration);
+    fn init(&mut self, cycle_time: std::time::Duration, path: &str);
 }
 
 /// Trait for access to meta signals: activity, target rating, stimulation, inhibition
