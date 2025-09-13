@@ -1,86 +1,10 @@
 use core::fmt;
-
+use std::process::Output;
 use std::{marker::PhantomData};
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use typenum::{Diff, Integer, Negate, Sum, N1, N2, N3, P1, P2, P3, P4, Z0};
 
-macro_rules! impl_unit_conversions {
-    (
-        $(
-            $unit:ident {
-                $( $set_name:ident, $get_name:ident => $factor:expr $(=> offset= $offset:expr)? ),+ $(,)?
-                $(=> constants {
-                    $( $const_name:ident , $const_value:expr ),* $(,)?
-                })?
-            }
-        )+ $(,)?
-    ) => {
-        $(
-            impl $unit {
-                $($(
-                    pub const $const_name: Self = SiValue::new($const_value);
-                )*)?
-                
-                $(
-                    pub fn $set_name(value: f64) -> Self {
-                        SiValue::new((value $(+ $offset)? ) * $factor)
-                    }
-
-                    pub fn $get_name(&self) -> f64 {
-                        self.value / $factor $( - $offset )?
-                    }
-                )+
-            }
-        )+
-    };
-}
-
-macro_rules! match_type {
-    ($l:ty, $m:ty, $t:ty, $a:ty, $k:ty, $mol:ty, $cd:ty) => {
-        L::to_i32() == <$l>::to_i32() &&
-        M::to_i32() == <$m>::to_i32() &&
-        T::to_i32() == <$t>::to_i32() &&
-        A::to_i32() == <$a>::to_i32() &&
-        K::to_i32() == <$k>::to_i32() &&
-        Mol::to_i32() == <$mol>::to_i32() &&
-        Cd::to_i32() == <$cd>::to_i32()
-    };
-}    
-
-macro_rules! new_types {
-    (
-        $(
-            $name:ident, $symbol:expr => kg^$mass:ty, m^$length:ty, s^$time:ty, A^$current:ty, K^$kelvin:ty, mol^$mol:ty, cd^$candela:ty
-        ),* $(,)?
-    ) => {
-        $(
-            #[doc = concat!("SI unit type for ", stringify!($name), ".")]
-            pub type $name = SiValue<$length, $mass, $time, $current, $kelvin, $mol, $candela>;
-        )*
-    
-        impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd>
-        where
-            L: Integer,
-            M: Integer,
-            T: Integer,
-            A: Integer,
-            K: Integer,
-            Mol: Integer,
-            Cd: Integer,
-        {
-            fn unit_symbol(&self) -> Option<String> {
-                $(
-                    if match_type!($length, $mass, $time, $current, $kelvin, $mol, $candela) {
-                        if let Some::<&str>(sym) = $symbol {
-                            return Some(sym.to_string());
-                        } 
-                    }
-                )*
-                None
-            }
-        }
-    };
-}
+use crate::si_units::si_macros::{impl_unit_conversions, new_types};
 
 /// A value with associated SI unit dimensions. 
 /// Unit dimensions are checked at compile time preventing unit mismatch errors.
@@ -91,6 +15,7 @@ pub struct SiValue<Meter, Kg, Second, Ampere, Kelvin, Mol, Candela> {
 }
 
 new_types!{
+    Scalar,                None        => kg^Z0, m^Z0, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // dimensionless
     Distance,              Some("m")   => kg^Z0, m^P1, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^1
     Area,                  None        => kg^Z0, m^P2, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^2
     Volume,                None        => kg^Z0, m^P3, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^3
@@ -136,6 +61,9 @@ new_types!{
 }
 
 impl_unit_conversions!(
+    Scalar {
+        scalar , as_scalar => 1.0
+    }
     Density {
         kilograms_per_cubic_meter , as_kilograms_per_cubic_meter => 1.0,
         grams_per_cubic_centimeter , as_grams_per_cubic_centimeter => 1e3,
@@ -370,6 +298,88 @@ impl_unit_conversions!(
     }
 );
 
+impl Add<f64> for SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0> {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn add(self, rhs: f64) -> Self::Output {
+        SiValue::new(self.value + rhs)
+    }
+}
+
+impl Add<f64> for &SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0> {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn add(self, rhs: f64) -> Self::Output {
+        SiValue::new(self.value + rhs)
+    }
+}
+
+impl Add<SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>> for f64 {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn add(self, rhs: SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>) -> Self::Output {
+        SiValue::new(self + rhs.value)
+    }
+}
+
+impl Add<&SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>> for f64 {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn add(self, rhs: &SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>) -> Self::Output {
+        SiValue::new(self + rhs.value)
+    }
+}   
+
+impl AddAssign<f64> for SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0> {
+    fn add_assign(&mut self, rhs: f64) {
+        self.value += rhs;
+    }
+}
+
+impl Sub<f64> for SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0> {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn sub(self, rhs: f64) -> Self::Output {
+        SiValue::new(self.value - rhs)
+    }
+}
+
+impl Sub<f64> for &SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0> {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn sub(self, rhs: f64) -> Self::Output {
+        SiValue::new(self.value - rhs)
+    }
+}
+
+impl Sub<SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>> for f64 {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn sub(self, rhs: SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>) -> Self::Output {
+        SiValue::new(self - rhs.value)
+    }
+}
+
+impl Sub<&SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>> for f64 {
+    type Output = SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>;
+
+    fn sub(self, rhs: &SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0>) -> Self::Output {
+        SiValue::new(self - rhs.value)
+    }
+}
+
+impl PartialEq<f64> for SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0> {
+    fn eq(&self, other: &f64) -> bool {
+        self.value == *other
+    }
+}
+
+impl PartialOrd<f64> for SiValue<Z0, Z0, Z0, Z0, Z0, Z0, Z0> {
+    fn partial_cmp(&self, other: &f64) -> Option<std::cmp::Ordering> {
+        self.value.partial_cmp(other)
+    }
+}
+
 impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd> {
     const fn new(value: f64) -> Self {
         Self {
@@ -378,8 +388,27 @@ impl<L, M, T, A, K, Mol, Cd> SiValue<L, M, T, A, K, Mol, Cd> {
         }
     }
 
+    pub const ZERO: Self = SiValue::new(0.0);
+
     pub fn as_value_in_base_units(&self) -> f64 {
         self.value
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq> Eq for SiValue<A, B, C, D, E, F, G> {}
+
+impl<A, B, C, D, E, F, G> Ord for SiValue<A, B, C, D, E, F, G> 
+where
+    A: PartialOrd + Eq,
+    B: PartialOrd + Eq,
+    C: PartialOrd + Eq,
+    D: PartialOrd + Eq,
+    E: PartialOrd + Eq,
+    F: PartialOrd + Eq,
+    G: PartialOrd + Eq,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.value.partial_cmp(&other.value).unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 

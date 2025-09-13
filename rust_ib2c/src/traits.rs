@@ -1,5 +1,4 @@
 use std::time::Duration;
-
 use crate::prelude::*;
 
 /// Module trait for behavior modules. Can be spawned using the [`BehaviorModule`] struct.

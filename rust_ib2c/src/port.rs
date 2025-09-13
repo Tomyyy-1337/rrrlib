@@ -185,10 +185,12 @@ pub struct ParameterPort<T: Clone> {
 }
 
 impl<T: Clone + Default> ParameterPort<T> {
+    // Set the parameter value.
     pub fn set(&self, data: T) {
         self.inner.send(data);
     }
 
+    /// Create a new ParameterPort with an initial value
     pub fn with_value(value: T) -> Self {
         Self {
             inner: Port {
@@ -205,6 +207,7 @@ impl<T: Clone + Default> ParameterPort<T> {
         self.buffer = self.inner.get().unwrap_or_default();
     }
 
+    /// Get the current parameter value from the internal buffer
     pub fn get(&self) -> &T {
         &self.buffer
     }

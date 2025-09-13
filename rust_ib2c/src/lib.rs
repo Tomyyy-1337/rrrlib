@@ -8,10 +8,6 @@ pub mod behavior_module;
 pub mod group;
 /// Fusion modules to combine data from multiple modules.
 pub mod fusion_module;
-/// TCP client module for network communication.
-pub mod tcp_client;
-/// Structure definitions for modules and groups for serialization 
-pub mod structure;
 /// Data structures and utilities for meta-signals.
 pub mod meta_signals;
 
@@ -22,8 +18,6 @@ pub mod prelude {
     pub use crate::behavior_module::BehaviorModule;
     pub use crate::group::BehaviorGroup;
     pub use crate::fusion_module::MaximumFusion;
-    pub use crate::tcp_client::{TCP_Client, TCP_Data};
-    pub use crate::structure::{Structure, ModuleType};
     pub use crate::meta_signals::MetaSignal;
     pub use ib2c_macros::module;
     pub use ib2c_macros::group;

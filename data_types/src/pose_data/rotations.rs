@@ -1,11 +1,18 @@
-use crate::vector::Vector3;
+use std::ops::{Add, Mul};
 
+use crate::{pose_data::{Vector2, Vector3}, prelude::Radian};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rotation2D {
     // Angle in radians in range [0, 2π]
     pub angle: f64,
 }
 
 impl Rotation2D {
+    pub const PI: Self = Self { angle: std::f64::consts::PI };
+    pub const PI_2: Self = Self { angle: std::f64::consts::FRAC_PI_2 }; 
+    pub const ZERO: Self = Self { angle: 0.0 };
+
     pub fn from_angle(angle: f64) -> Self {
         let mut a = angle % (2.0 * std::f64::consts::PI);
         if a < 0.0 {
@@ -14,12 +21,14 @@ impl Rotation2D {
         Self { angle: a }
     }
 
-    pub fn rotate_vector(&self, v: Vector3<f64>) -> Vector3<f64> {
-        let (sin_a, cos_a) = self.angle.sin_cos();
-        Vector3::new(
-            cos_a * v.x() - sin_a * v.y(),
-            sin_a * v.x() + cos_a * v.y(),
-            v.z(),
+    pub fn rotate_vector<T>(&self, v: Vector2<T>) -> Vector2<T> 
+    where 
+        T: Default + Copy + std::ops::Add<T, Output = T> + std::ops::Sub<T, Output = T> + std::ops::Mul<f64, Output = T>
+    {
+        let (s, c) = self.angle.sin_cos();
+        Vector2::new(
+            v.x() * c - v.y() * s,
+            v.x() * s + v.y() * c,
         )
     }
 
@@ -29,6 +38,62 @@ impl Rotation2D {
 
     pub fn as_degrees(&self) -> f64 {
         self.angle.to_degrees()
+    }
+
+    pub fn as_unit_vector(&self) -> Vector2<f64> {
+        let (s, c) = self.angle.sin_cos();
+        Vector2::new(c, s)
+    }
+}
+
+impl Add for &Rotation2D {
+    type Output = Rotation2D;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Rotation2D::from_angle(self.angle + rhs.angle)
+    }
+}
+
+impl Add<Rotation2D> for Rotation2D {
+    type Output = Self;
+
+    fn add(self, rhs: Rotation2D) -> Self::Output {
+        Self::from_angle(self.angle + rhs.angle)
+    }
+}
+
+impl Add<&Radian> for Rotation2D {
+    type Output = Self;
+
+    fn add(self, rhs: &Radian) -> Self::Output {
+        Self::from_angle(self.angle + rhs.as_radians())
+    }
+}
+
+impl<T> Add<T> for Rotation2D 
+where
+    T: std::borrow::Borrow<f64>
+{
+    type Output = Self;
+
+    fn add(self, rhs: T) -> Self::Output {
+        Self::from_angle(self.angle + rhs.borrow())
+    }
+}
+
+impl Mul<f64> for Rotation2D {
+    type Output = Self;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self::from_angle(self.angle * rhs)
+    }
+}
+
+impl Mul<Rotation2D> for f64 {
+    type Output = Rotation2D;
+
+    fn mul(self, rhs: Rotation2D) -> Self::Output {
+        Rotation2D::from_angle(self * rhs.angle)
     }
 }
 

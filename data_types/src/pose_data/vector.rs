@@ -1,11 +1,8 @@
-use std::{fmt::Display, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}, path::Iter};
+use std::{fmt::Display, hash::Hash, ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}, path::Iter};
 
 pub type Vector2<T> = Vector<T, 2>;
 pub type Vector3<T> = Vector<T, 3>;
 pub type Vector4<T> = Vector<T, 4>;
-// pub type Position2D<T> = Vector<T, 2>;
-// pub type Position3D<T> = Vector<T, 3>;
-// pub type Position4D<T> = Vector<T, 4>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Vector<T: Default + Copy, const N: usize> {
@@ -54,6 +51,18 @@ impl<T: Default + Copy, const N: usize> Vector<T, N> {
         let mut result = T::default();
         for i in 0..N {
             result = result + (self.data[i] * other.data[i]);
+        }
+        result
+    }
+
+    pub fn magnitude_squared<R>(&self) -> R 
+    where 
+        R: Add<Output = R> + Default + Copy,
+        T: Mul<Output = R> + Default + Copy
+    {
+        let mut result = R::default();
+        for i in 0..N {
+            result = result + self.data[i] * self.data[i];
         }
         result
     }
