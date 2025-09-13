@@ -942,3 +942,92 @@ fn to_superscript(n: i32) -> String {
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_addition() {
+        let length1 = Distance::meters(5.0);
+        let length2 = Distance::meters(3.0);
+        let result = length1 + length2;
+        let result2 = &length1 + &length2;
+        let result3 = length1 + &length2;
+        let result4 = &length1 + length2;
+        assert_eq!(result.as_meters(), 8.0);
+        assert_eq!(result2.as_meters(), 8.0);
+        assert_eq!(result3.as_meters(), 8.0);
+        assert_eq!(result4.as_meters(), 8.0);
+    }
+
+    #[test]
+    fn test_subtraction() {
+        let length1 = Distance::meters(5.0);
+        let length2 = Distance::meters(3.0);
+        let result = length1 - length2;
+        let result2 = &length1 - &length2;
+        let result3 = length1 - &length2;
+        let result4 = &length1 - length2;
+        assert_eq!(result.as_meters(), 2.0);
+        assert_eq!(result2.as_meters(), 2.0);
+        assert_eq!(result3.as_meters(), 2.0);
+        assert_eq!(result4.as_meters(), 2.0);
+    }
+
+    #[test]
+    fn test_multiplication_and_division() {
+        let length = Distance::meters(5.0);
+        let time = Time::seconds(2.0);
+        let speed = length / time; // m/s
+        assert_eq!(speed.as_meters_per_second(), 2.5);
+
+        let area = length * length; // m^2
+        assert_eq!(area.as_square_meters(), 25.0);
+
+        let volume = area * length; // m^3
+        assert_eq!(volume.as_cubic_meters(), 125.0);
+
+        let force = Force::newtons(10.0);
+        let distance = Distance::meters(3.0);
+        let work = force * distance; // Joules (kg·m²/s²)
+        assert_eq!(work.as_joules(), 30.0);
+
+        let power = work / time; // Watts (kg·m²/s³)
+        assert_eq!(power.as_watts(), 15.0);
+
+        let acceleration = Acceleration::meters_per_second_squared(9.81);
+        let mass = Mass::kilograms(2.0);
+        let force2 = mass * acceleration; // Newtons (kg·m/s²)
+        assert_eq!(force2.as_newtons(), 19.62);
+
+        let inverse_speed = 1.0 / speed; // s/m
+        assert_eq!(inverse_speed.as_value_in_base_units(), 0.4);
+        
+        let sqrt_area = area.sqrt(); // m
+        assert_eq!(sqrt_area.as_meters(), 5.0);
+    }       
+
+    #[test]
+    fn test_sqrt() {
+        let area = Area::square_meters(16.0);
+        let length = area.sqrt();
+        assert_eq!(length.as_meters(), 4.0);
+    }
+
+    #[test]
+    fn test_inverse() {
+        let speed = Velocity::meters_per_second(2.0);
+        let inverse_speed = speed.inverse();
+        assert_eq!(inverse_speed.as_value_in_base_units(), 0.5);
+
+        let time = Time::seconds(4.0);
+        let frequency = time.inverse();
+
+        assert_eq!(frequency.as_value_in_base_units(), 0.25);
+        assert_eq!(frequency.unit_str(), " [1/s]");
+
+    }
+
+
+}
