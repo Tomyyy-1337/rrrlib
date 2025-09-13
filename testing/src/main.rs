@@ -3,151 +3,105 @@ use std::{thread::park, time::Duration};
 use data_types::prelude::*;
 use rust_ib2c::prelude::*;
 
-pub fn main() {
-    let cycle_time = Duration::from_millis(400);
+mod simulation;
+use simulation::*;
 
-    BehaviorGroup::<BatterySystem>::with_name("BatterySystem", cycle_time);
+pub fn main() {
+    nannou::app(model).update(update).run();
+
+    // let cycle_time = Duration::from_millis(400);
+
+    // BehaviorGroup::<BatterySystem>::with_name("BatterySystem", cycle_time);
 
     loop { park(); }
 }
 
 #[group]
-struct BatterySystem {}
+struct ControlSystem {
+    pub in_front_distance_sensor: ReceivePort<Distance>,
+    
+    pub out_velocity: SendPort<Velocity>,
+}
 
-impl Group for BatterySystem {
+impl Group for ControlSystem {
     #[spawn]
     fn init(&mut self, cycle_time: Duration) {
-        let battery = BehaviorModule::<Battery>::with_name("Battery", cycle_time);
-        let light_bulb = BehaviorModule::<LightBulb>::with_name("LightBulb", cycle_time);
-        battery.stimulation.connect_to_source(&light_bulb.activity);
+        let break_on_obstacle = BehaviorModule::<BreakOnObstacle>::with_name("BreakOnObstacle", cycle_time);
+        let constant_velocity = BehaviorModule::<ConstantVelocity>::with_name("ConstantVelocity", cycle_time);
+        let mut maximum_fusion = MaximumFusion::with_name("MaxFusion", cycle_time);
+        
+        break_on_obstacle.in_distance.connect_to_source(&self.in_front_distance_sensor);
+        
+        connect_fusion! {
+            maximum_fusion,
+            ports: [
+                break_on_obstacle.out_velocity,
+                constant_velocity.out_velocity,
+            ]
+        };
 
-        battery.in_resistance.connect_to_source(&light_bulb.out_resistance);
-        light_bulb.in_voltage.connect_to_source(&battery.out_voltage);
-        light_bulb.in_current.connect_to_source(&battery.out_current);
+        self.out_velocity.connect_to_source(&maximum_fusion.output);   
     }
 }
 
 #[module]
-struct LightBulb {
-    pub in_voltage: ReceivePort<Voltage>,
-    pub in_current: ReceivePort<Current>,
-
-    pub out_power: SendPort<Power>,
-    pub out_resistance: SendPort<Resistance>,
-
-    internal_resistance: Resistance,
+struct BreakOnObstacle {
+    pub par_min_distance: ParameterPort<Distance>,
+    pub in_distance: ReceivePort<Distance>,
+    pub out_velocity: SendPort<Velocity>,
+    obstacle_detected: bool,
 }
 
-impl Module for LightBulb {
+impl Module for BreakOnObstacle {
     fn init() -> Self {
         Self {
-            internal_resistance: Resistance::ohms(20.0),
+            par_min_distance: ParameterPort::with_value(Distance::meters(0.5)),
+            obstacle_detected: false,
             ..Default::default()
         }
     }
 
     fn transfere(&mut self) {
-        let voltage = self.in_voltage.get_or_default();
-        let current = self.in_current.get_or_default();
-
-        let power = voltage * current;
-
-        if power.as_watts() > 1.0 {
-            println!("LightBulb on with power: {}", power);
+        let distance = self.in_distance.get_or_default();
+        if distance < *self.par_min_distance.get() {
+            self.out_velocity.send(Velocity::meters_per_second(0.0));
+            println!("Obstacle detected! Distance: {}", distance);
+            self.obstacle_detected = true;
+        } else {
+            self.obstacle_detected = false;
         }
-
-        self.out_power.send(power);
-        self.out_resistance.send(self.internal_resistance)
     }
 
     fn target_rating(&self) -> MetaSignal {
-        if self.out_power.get_or_default().as_watts() > 1.0 {
+        if self.obstacle_detected {
             MetaSignal::HIGH
         } else {
             MetaSignal::LOW
         }
-    }
+    }   
 }
+
 
 #[module]
-struct Battery {
-    pub in_resistance: ReceivePort<Resistance>,
-
-    pub out_voltage: SendPort<Voltage>,
-    pub out_current: SendPort<Current>,
-
-    remaining_capacity: Energy,
-    voltage: Voltage,
+struct  ConstantVelocity {
+    pub par_velocity: ParameterPort<Velocity>,
+    pub out_velocity: SendPort<Velocity>,
 }
 
-impl Module for Battery {
+impl Module for ConstantVelocity {
     fn init() -> Self {
         Self {
-            remaining_capacity: Energy::watt_seconds(20.0),
-            voltage: Voltage::volts(9.0),
+            par_velocity: ParameterPort::with_value(Velocity::meters_per_second(1.0)),
             ..Default::default()
         }
     }
 
     fn transfere(&mut self) {
-        if self.in_resistance.get().is_none() {
-            return;
-        }
-        let resistance = self.in_resistance.get_or_default();
-        let current = self.voltage / resistance;        
-        let delta_time = Time::seconds(self.delta_time.as_secs_f64());
-        let used_energy = current * self.voltage * delta_time;
-        self.remaining_capacity -= used_energy;
-        if self.remaining_capacity < Energy::watt_hours(0.0) {
-            self.remaining_capacity = Energy::watt_hours(0.0);
-            self.out_voltage.send(Voltage::volts(0.0));
-            self.out_current.send(Current::amperes(0.0));
-        } else {
-            self.out_voltage.send(self.voltage);
-            self.out_current.send(current);
-        }
-        let operation_time = self.remaining_capacity / (current * self.voltage);
-        println!("Remaining capacity: {}, Operation time: {}", self.remaining_capacity, operation_time);
-        println!("Stimulus: {:?}", self.get_stimulation());
-    }
-
-    fn target_rating(&self) -> MetaSignal {
-        if self.remaining_capacity.as_watt_seconds() > 0.1 {
-            MetaSignal::HIGH
-        } else {
-            MetaSignal::LOW
-        }
-    }
-}
-
-
-#[module]
-struct CalcAcceleration {
-    pub par_mass: ParameterPort<Mass>,
-
-    pub in_force: ReceivePort<Force>,
-    pub in_current_speed: ReceivePort<Velocity>,
-
-    pub out_acceleration: SendPort<Acceleration>,
-    pub out_required_power: SendPort<Power>,
-}
-
-impl Module for CalcAcceleration {
-    fn transfere(&mut self) {
-        let mass = self.par_mass.get();
-        let force = self.in_force.get_or_default();
-        let current_speed = self.in_current_speed.get_or_default();
-
-        let acceleration = force / mass;
-        let required_power = force * current_speed;
-
-        self.out_acceleration.send(acceleration);
-        self.out_required_power.send(required_power);
+        let velocity = *self.par_velocity.get();
+        self.out_velocity.send(velocity);
     }
 
     fn target_rating(&self) -> MetaSignal {
         MetaSignal::HIGH
-    }
+    }   
 }
-
-

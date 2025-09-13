@@ -189,6 +189,15 @@ impl<T: Clone + Default> ParameterPort<T> {
         self.inner.send(data);
     }
 
+    pub fn with_value(value: T) -> Self {
+        Self {
+            inner: Port {
+                mode: Arc::new(RwLock::new(PortMode::Buffer(PortBuffer { buffer: Some(value.clone()) }))),
+            },
+            buffer: value,
+        }
+    }
+
     /// Update the internal buffer with the latest data from the connected SendPort
     /// Is called automatically when used inside a [`BehaviorModule`][`crate::behavior_module::BehaviorModule`]
     /// and does not need to be called manually.
