@@ -25,7 +25,7 @@ macro_rules! impl_unit_conversions {
                     pub fn $set_name(value: f64) -> Self {
                         SiValue::new((value $(+ $offset)? ) * $factor)
                     }
-                    
+
                     pub fn $get_name(&self) -> f64 {
                         self.value / $factor $( - $offset )?
                     }
@@ -54,6 +54,7 @@ macro_rules! new_types {
         ),* $(,)?
     ) => {
         $(
+            #[doc = concat!("SI unit type for ", stringify!($name), ".")]
             pub type $name = SiValue<$length, $mass, $time, $current, $kelvin, $mol, $candela>;
         )*
     
@@ -81,6 +82,8 @@ macro_rules! new_types {
     };
 }
 
+/// A value with associated SI unit dimensions. 
+/// Unit dimensions are checked at compile time preventing unit mismatch errors.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 pub struct SiValue<Meter, Kg, Second, Ampere, Kelvin, Mol, Candela> {
     value: f64,
@@ -92,7 +95,7 @@ new_types!{
     Area,                  None        => kg^Z0, m^P2, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^2
     Volume,                None        => kg^Z0, m^P3, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^3
     Time,                  Some("s")   => kg^Z0, m^Z0, s^P1, A^Z0, K^Z0, mol^Z0, cd^Z0, // s^1
-    Frequency,             Some("Hz")  => kg^Z0, m^Z0, s^N1, A^Z0, K^Z0, mol^Z0, cd^Z0, // s^-1
+    Frequency,             None        => kg^Z0, m^Z0, s^N1, A^Z0, K^Z0, mol^Z0, cd^Z0, // s^-1
     Velocity,              None        => kg^Z0, m^P1, s^N1, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^1 s^-1
     Acceleration,          None        => kg^Z0, m^P1, s^N2, A^Z0, K^Z0, mol^Z0, cd^Z0, // m^1 s^-2
     Mass,                  Some("kg")  => kg^P1, m^Z0, s^Z0, A^Z0, K^Z0, mol^Z0, cd^Z0, // kg^1
@@ -390,7 +393,7 @@ where
     Mol: Integer + Neg,
     Cd: Integer + Neg,
 {
-    pub fn inverse(self) -> SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>, Negate<Mol>, Negate<Cd>> {
+    pub fn inverse(&self) -> SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>, Negate<Mol>, Negate<Cd>> {
         SiValue::new(1.0 / self.value)
     }
 }
@@ -405,7 +408,7 @@ where
     Mol: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
     Cd: Integer + std::ops::Div<typenum::P2> + Rem<P2, Output = Z0>,
 {
-    pub fn sqrt(self) -> SiValue<
+    pub fn sqrt(&self) -> SiValue<
         typenum::Quot<L, typenum::P2>,
         typenum::Quot<M, typenum::P2>,
         typenum::Quot<T, typenum::P2>,
@@ -418,31 +421,65 @@ where
     }
 }
 
-impl<L, M, T, A, K, Mol, Cd> Add for SiValue<L, M, T, A, K, Mol, Cd> {
+impl<L, M, T, A, K, Mol, Cd, Rhs> Add<Rhs> for SiValue<L, M, T, A, K, Mol, Cd>
+where
+    Rhs: std::borrow::Borrow<SiValue<L, M, T, A, K, Mol, Cd>>,
+{
     type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
-    fn add(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
-        SiValue::new(self.value + rhs.value)
+    fn add(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value + rhs.borrow().value)
     }
 }
 
-impl<L, M, T, A, K, Mol, Cd> AddAssign for SiValue<L, M, T, A, K, Mol, Cd> {
-    fn add_assign(&mut self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) {
-        self.value += rhs.value;
-    }
-}
-
-impl<L, M, T, A, K, Mol, Cd> Sub for SiValue<L, M, T, A, K, Mol, Cd> {
+impl<L, M, T, A, K, Mol, Cd, Rhs> Add<Rhs> for &SiValue<L, M, T, A, K, Mol, Cd>
+where
+    Rhs: std::borrow::Borrow<SiValue<L, M, T, A, K, Mol, Cd>>,
+{
     type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
-    fn sub(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
-        SiValue::new(self.value - rhs.value)
+    fn add(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value + rhs.borrow().value)
     }
 }
 
-impl<L, M, T, A, K, Mol, Cd> SubAssign for SiValue<L, M, T, A, K, Mol, Cd> {
-    fn sub_assign(&mut self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) {
-        self.value -= rhs.value;
+impl<L, M, T, A, K, Mol, Cd, Rhs> AddAssign<Rhs> for SiValue<L, M, T, A, K, Mol, Cd> 
+where
+    Rhs: std::borrow::Borrow<SiValue<L, M, T, A, K, Mol, Cd>>,
+{
+    fn add_assign(&mut self, rhs: Rhs) {
+        self.value += rhs.borrow().value;
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd, Rhs> Sub<Rhs> for SiValue<L, M, T, A, K, Mol, Cd>
+where
+    Rhs: std::borrow::Borrow<SiValue<L, M, T, A, K, Mol, Cd>>,
+{
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
+
+    fn sub(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value - rhs.borrow().value)
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd, Rhs> Sub<Rhs> for &SiValue<L, M, T, A, K, Mol, Cd>
+where
+    Rhs: std::borrow::Borrow<SiValue<L, M, T, A, K, Mol, Cd>>,
+{
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
+
+    fn sub(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value - rhs.borrow().value)
+    }
+}
+
+impl <L, M, T, A, K, Mol, Cd, Rhs> SubAssign<Rhs> for SiValue<L, M, T, A, K, Mol, Cd> 
+where
+    Rhs: std::borrow::Borrow<SiValue<L, M, T, A, K, Mol, Cd>>,
+{
+    fn sub_assign(&mut self, rhs: Rhs) {
+        self.value -= rhs.borrow().value;
     }
 }
 
@@ -466,6 +503,78 @@ where
     type Output = SiValue<Sum<L1, L2>, Sum<M1, M2>, Sum<T1, T2>, Sum<A1, A2>, Sum<K1, K2>, Sum<Mol1, Mol2>, Sum<Cd1, Cd2>>;
 
     fn mul(self, rhs: SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
+        SiValue::new(self.value * rhs.value)
+    }
+}
+
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Mul<&SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
+where
+    L1: Integer + std::ops::Add<L2>,
+    M1: Integer + std::ops::Add<M2>,
+    T1: Integer + std::ops::Add<T2>,
+    A1: Integer + std::ops::Add<A2>,
+    K1: Integer + std::ops::Add<K2>,
+    Mol1: Integer + std::ops::Add<Mol2>,
+    Cd1: Integer + std::ops::Add<Cd2>,
+    L2: Integer,
+    M2: Integer,
+    T2: Integer,
+    A2: Integer,
+    K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
+{
+    type Output = SiValue<Sum<L1, L2>, Sum<M1, M2>, Sum<T1, T2>, Sum<A1, A2>, Sum<K1, K2>, Sum<Mol1, Mol2>, Sum<Cd1, Cd2>>;
+
+    fn mul(self, rhs: &SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
+        SiValue::new(self.value * rhs.value)
+    }
+}
+
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Mul<SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for &SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
+where
+    L1: Integer + std::ops::Add<L2>,
+    M1: Integer + std::ops::Add<M2>,
+    T1: Integer + std::ops::Add<T2>,
+    A1: Integer + std::ops::Add<A2>,
+    K1: Integer + std::ops::Add<K2>,
+    Mol1: Integer + std::ops::Add<Mol2>,
+    Cd1: Integer + std::ops::Add<Cd2>,
+    L2: Integer,
+    M2: Integer,
+    T2: Integer,
+    A2: Integer,
+    K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
+{
+    type Output = SiValue<Sum<L1, L2>, Sum<M1, M2>, Sum<T1, T2>, Sum<A1, A2>, Sum<K1, K2>, Sum<Mol1, Mol2>, Sum<Cd1, Cd2>>;
+
+    fn mul(self, rhs: SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
+        SiValue::new(self.value * rhs.value)
+    }
+}
+
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Mul<&SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for &SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
+where
+    L1: Integer + std::ops::Add<L2>,
+    M1: Integer + std::ops::Add<M2>,
+    T1: Integer + std::ops::Add<T2>,
+    A1: Integer + std::ops::Add<A2>,
+    K1: Integer + std::ops::Add<K2>,
+    Mol1: Integer + std::ops::Add<Mol2>,
+    Cd1: Integer + std::ops::Add<Cd2>,
+    L2: Integer,
+    M2: Integer,
+    T2: Integer,
+    A2: Integer,
+    K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
+{
+    type Output = SiValue<Sum<L1, L2>, Sum<M1, M2>, Sum<T1, T2>, Sum<A1, A2>, Sum<K1, K2>, Sum<Mol1, Mol2>, Sum<Cd1, Cd2>>;
+
+    fn mul(self, rhs: &SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
         SiValue::new(self.value * rhs.value)
     }
 }
@@ -494,11 +603,97 @@ where
     }
 }
 
-impl<L, M, T, A, K, Mol, Cd> Mul<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Div<&SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
+where
+    L1: Integer + std::ops::Sub<L2>,
+    M1: Integer + std::ops::Sub<M2>,
+    T1: Integer + std::ops::Sub<T2>,
+    A1: Integer + std::ops::Sub<A2>,
+    K1: Integer + std::ops::Sub<K2>,
+    Mol1: Integer + std::ops::Sub<Mol2>,
+    Cd1: Integer + std::ops::Sub<Cd2>,
+    L2: Integer,
+    M2: Integer,
+    T2: Integer,
+    A2: Integer,
+    K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
+{
+    type Output = SiValue<Diff<L1, L2>, Diff<M1, M2>, Diff<T1, T2>, Diff<A1, A2>, Diff<K1, K2>, Diff<Mol1, Mol2>, Diff<Cd1, Cd2>>;
+
+    fn div(self, rhs: &SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
+        SiValue::new(self.value / rhs.value)
+    }
+}
+
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Div<SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for &SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
+where
+    L1: Integer + std::ops::Sub<L2>,
+    M1: Integer + std::ops::Sub<M2>,
+    T1: Integer + std::ops::Sub<T2>,
+    A1: Integer + std::ops::Sub<A2>,
+    K1: Integer + std::ops::Sub<K2>,
+    Mol1: Integer + std::ops::Sub<Mol2>,
+    Cd1: Integer + std::ops::Sub<Cd2>,
+    L2: Integer,
+    M2: Integer,
+    T2: Integer,
+    A2: Integer,
+    K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
+{
+    type Output = SiValue<Diff<L1, L2>, Diff<M1, M2>, Diff<T1, T2>, Diff<A1, A2>, Diff<K1, K2>, Diff<Mol1, Mol2>, Diff<Cd1, Cd2>>;
+
+    fn div(self, rhs: SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
+        SiValue::new(self.value / rhs.value)
+    }
+}
+
+impl<L1, M1, T1, A1, K1, Mol1, Cd1, L2, M2, T2, A2, K2, Mol2, Cd2> Div<&SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>> for &SiValue<L1, M1, T1, A1, K1, Mol1, Cd1>
+where
+    L1: Integer + std::ops::Sub<L2>,
+    M1: Integer + std::ops::Sub<M2>,
+    T1: Integer + std::ops::Sub<T2>,
+    A1: Integer + std::ops::Sub<A2>,
+    K1: Integer + std::ops::Sub<K2>,
+    Mol1: Integer + std::ops::Sub<Mol2>,
+    Cd1: Integer + std::ops::Sub<Cd2>,
+    L2: Integer,
+    M2: Integer,
+    T2: Integer,
+    A2: Integer,
+    K2: Integer,
+    Mol2: Integer,
+    Cd2: Integer,
+{
+    type Output = SiValue<Diff<L1, L2>, Diff<M1, M2>, Diff<T1, T2>, Diff<A1, A2>, Diff<K1, K2>, Diff<Mol1, Mol2>, Diff<Cd1, Cd2>>;
+
+    fn div(self, rhs: &SiValue<L2, M2, T2, A2, K2, Mol2, Cd2>) -> Self::Output {
+        SiValue::new(self.value / rhs.value)
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd, Rhs> Mul<Rhs> for SiValue<L, M, T, A, K, Mol, Cd> 
+where
+    Rhs: std::borrow::Borrow<f64>,
+{
     type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
-    fn mul(self, rhs: f64) -> Self::Output {
-        SiValue::new(self.value * rhs)
+    fn mul(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value * rhs.borrow())
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd, Rhs> Mul<Rhs> for &SiValue<L, M, T, A, K, Mol, Cd> 
+where
+    Rhs: std::borrow::Borrow<f64>,
+{
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
+
+    fn mul(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value * rhs.borrow())
     }
 }
 
@@ -510,17 +705,58 @@ impl<L, M, T, A, K, Mol, Cd> Mul<SiValue<L, M, T, A, K, Mol, Cd>> for f64 {
     }
 }
 
-impl<L, M, T, A, K, Mol, Cd> MulAssign<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
-    fn mul_assign(&mut self, rhs: f64) {
-        self.value *= rhs;
+impl<L, M, T, A, K, Mol, Cd> Mul<SiValue<L, M, T, A, K, Mol, Cd>> for &f64 {
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
+
+    fn mul(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
+        SiValue::new(self * rhs.value)
     }
 }
 
-impl<L, M, T, A, K, Mol, Cd> Div<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
+impl<L, M, T, A, K, Mol, Cd> Mul<&SiValue<L, M, T, A, K, Mol, Cd>> for f64 {
     type Output = SiValue<L, M, T, A, K, Mol, Cd>;
 
-    fn div(self, rhs: f64) -> Self::Output {
-        SiValue::new(self.value / rhs)
+    fn mul(self, rhs: &SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
+        SiValue::new(self * rhs.value)
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd> Mul<&SiValue<L, M, T, A, K, Mol, Cd>> for &f64 {
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
+
+    fn mul(self, rhs: &SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
+        SiValue::new(self * rhs.value)
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd, Rhs> MulAssign<Rhs> for SiValue<L, M, T, A, K, Mol, Cd> 
+where 
+    Rhs: std::borrow::Borrow<f64>
+{
+    fn mul_assign(&mut self, rhs: Rhs) {
+        self.value *= rhs.borrow();
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd, Rhs> Div<Rhs> for SiValue<L, M, T, A, K, Mol, Cd> 
+where
+    Rhs: std::borrow::Borrow<f64>,
+{
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
+
+    fn div(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value / rhs.borrow())
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd, Rhs> Div<Rhs> for &SiValue<L, M, T, A, K, Mol, Cd> 
+where
+    Rhs: std::borrow::Borrow<f64>,
+{
+    type Output = SiValue<L, M, T, A, K, Mol, Cd>;
+
+    fn div(self, rhs: Rhs) -> Self::Output {
+        SiValue::new(self.value / rhs.borrow())
     }
 }
 
@@ -541,8 +777,65 @@ where
     }
 }
 
+impl<L, M, T, A, K, Mol, Cd> Div<SiValue<L, M, T, A, K, Mol, Cd>> for &f64
+where
+    L: Integer + Neg,
+    M: Integer + Neg,
+    T: Integer + Neg,
+    A: Integer + Neg,
+    K: Integer + Neg,
+    Mol: Integer + Neg,
+    Cd: Integer + Neg,
+{
+    type Output = SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>, Negate<Mol>, Negate<Cd>>;
+
+    fn div(self, rhs: SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
+        SiValue::new(self / rhs.value)
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd> Div<&SiValue<L, M, T, A, K, Mol, Cd>> for f64
+where
+    L: Integer + Neg,
+    M: Integer + Neg,
+    T: Integer + Neg,
+    A: Integer + Neg,
+    K: Integer + Neg,
+    Mol: Integer + Neg,
+    Cd: Integer + Neg,
+{
+    type Output = SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>, Negate<Mol>, Negate<Cd>>;
+
+    fn div(self, rhs: &SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
+        SiValue::new(self / rhs.value)
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd> Div<&SiValue<L, M, T, A, K, Mol, Cd>> for &f64
+where
+    L: Integer + Neg,
+    M: Integer + Neg,
+    T: Integer + Neg,
+    A: Integer + Neg,
+    K: Integer + Neg,
+    Mol: Integer + Neg,
+    Cd: Integer + Neg,
+{
+    type Output = SiValue<Negate<L>, Negate<M>, Negate<T>, Negate<A>, Negate<K>, Negate<Mol>, Negate<Cd>>;
+
+    fn div(self, rhs: &SiValue<L, M, T, A, K, Mol, Cd>) -> Self::Output {
+        SiValue::new(self / rhs.value)
+    }
+}
+
 impl<L, M, T, A, K, Mol, Cd> DivAssign<f64> for SiValue<L, M, T, A, K, Mol, Cd> {
     fn div_assign(&mut self, rhs: f64) {
+        self.value /= rhs;
+    }
+}
+
+impl<L, M, T, A, K, Mol, Cd> DivAssign<&f64> for SiValue<L, M, T, A, K, Mol, Cd> {
+    fn div_assign(&mut self, rhs: &f64) {
         self.value /= rhs;
     }
 }

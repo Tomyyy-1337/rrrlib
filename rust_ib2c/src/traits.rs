@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::prelude::*;
 
 /// Module trait for behavior modules. Can be spawned using the [`BehaviorModule`] struct.
@@ -26,6 +28,7 @@ pub trait MetaSignals {
     fn get_target_rating_port(&self) -> &SendPort<MetaSignal>;
     fn get_stimulation_port(&mut self) -> &ReceivePort<MetaSignal>;
     fn get_inhibition_port(&mut self) -> &ReceivePort<MetaSignal>;
+    fn set_delta_time(&mut self, delta_time: Duration);
 }
 
 /// Trait for updating all receive ports of modules and groups.

@@ -6,4 +6,3 @@ edition = "2024"
 [dependencies]
 rust_ib2c = { path = "../rust_ib2c" }
 data_types = { path = "../data_types" }
-uom = "0.37.0"

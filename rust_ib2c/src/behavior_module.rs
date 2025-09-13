@@ -10,6 +10,7 @@ where
     name: String,
     pub module: M,
     cycle_time: std::time::Duration,
+    last_update: std::time::Instant,
 }
 
 impl<M> DerefMut for BehaviorModule<M> 
@@ -41,7 +42,8 @@ where
         Self {
             name: name.to_string(),
             module: M::init(),
-            cycle_time
+            cycle_time,
+            last_update: std::time::Instant::now(),
         }
     }
 
@@ -53,6 +55,9 @@ where
         let _ = std::thread::spawn(move || {
             loop {
                 let start = std::time::Instant::now();
+                let delta_time = start.duration_since(self.last_update);
+                self.last_update = start;
+                self.set_delta_time(delta_time);
                 self.update_all_ports();
                 self.transfere();
                 let target_rating = self.module.target_rating();

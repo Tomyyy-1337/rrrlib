@@ -112,7 +112,7 @@ pub fn ports(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         if let Type::Path(type_path) = &field.ty {
             if let Some(ident) = type_path.path.segments.last().map(|s| &s.ident) {
-                if ident == "ReceivePort" {
+                if ident == "ReceivePort" || ident == "ParameterPort" {
                     receive_port_updates.push(quote! {
                         self.#field_name.update();
                     });
@@ -132,6 +132,7 @@ pub fn ports(_attr: TokenStream, item: TokenStream) -> TokenStream {
             pub target_rating: SendPort<MetaSignal>,
             pub stimulation: ReceivePort<MetaSignal>,
             pub inhibition: ReceivePort<MetaSignal>,
+            delta_time: std::time::Duration,
         }
 
         impl #impl_generics MetaSignals for #struct_name #ty_generics
@@ -176,6 +177,10 @@ pub fn ports(_attr: TokenStream, item: TokenStream) -> TokenStream {
             fn get_inhibition_port(&mut self) -> &ReceivePort<MetaSignal> {
                 &mut self.inhibition
             }
+
+            fn set_delta_time(&mut self, delta_time: std::time::Duration) {
+                self.delta_time = delta_time;
+            }
         }
 
         impl #impl_generics UpdateReceivePorts for #struct_name #ty_generics
@@ -183,6 +188,8 @@ pub fn ports(_attr: TokenStream, item: TokenStream) -> TokenStream {
         {
             fn update_all_ports(&mut self) {
                 #(#receive_port_updates)*
+                self.stimulation.update();
+                self.inhibition.update();
             }
         }
 

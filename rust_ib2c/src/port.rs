@@ -41,6 +41,13 @@ impl<T: Clone> Port<T> {
         }
     }
 
+    fn get_or_default(&self) -> T
+    where
+        T: Default,
+    {
+        self.get().unwrap_or_default()
+    }
+
     fn connect_to_source(&self, source: &Port<T>) {
         *self.mode.write().unwrap() = PortMode::Passthrough(source.clone());
     }
@@ -131,6 +138,14 @@ impl<T: Clone> SendPort<T> {
     pub fn get(&self) -> Option<T> {
         self.inner.get()
     }
+
+    /// Get the last sent data or a default value if no data was sent yet
+    pub fn get_or_default(&self) -> T
+    where
+        T: Default,
+    {
+        self.inner.get_or_default()
+    }
 }
 
 impl<T: Clone> ReceivePort<T> {
@@ -155,6 +170,46 @@ impl<T: Clone> ReceivePort<T> {
     pub fn get(&self) -> Option<&T> {
         self.buffer.as_ref()
     }
+
+    pub fn get_or_default(&self) -> T
+    where
+        T: Default,
+    {
+        self.inner.get_or_default()
+    }
+}
+
+pub struct ParameterPort<T: Clone> {
+    inner: Port<T>,
+    buffer: T,
+}
+
+impl<T: Clone + Default> ParameterPort<T> {
+    pub fn set(&self, data: T) {
+        self.inner.send(data);
+    }
+
+    /// Update the internal buffer with the latest data from the connected SendPort
+    /// Is called automatically when used inside a [`BehaviorModule`][`crate::behavior_module::BehaviorModule`]
+    /// and does not need to be called manually.
+    pub fn update(&mut self) {
+        self.buffer = self.inner.get().unwrap_or_default();
+    }
+
+    pub fn get(&self) -> &T {
+        &self.buffer
+    }
+}
+
+impl<T: Clone + Default> Default for ParameterPort<T> {
+    fn default() -> Self {
+        Self {
+            inner: Port { 
+                mode: Arc::new(RwLock::new(PortMode::Buffer(PortBuffer { buffer: Some(T::default()) }))),
+            },
+            buffer: T::default(),
+        }
+    }
 }
 
 /// Used as outputs of the controll system to read data from modules and groups 
@@ -166,6 +221,13 @@ pub struct OutputPort<T: Clone> {
 impl<T: Clone> OutputPort<T> {
     pub fn get(&self) -> Option<T> {
         self.source.get()
+    }
+
+    pub fn get_or_default(&self) -> T
+    where
+        T: Default,
+    {
+        self.source.get_or_default()
     }
 }
 

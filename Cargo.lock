@@ -127,7 +127,6 @@ version = "0.1.0"
 dependencies = [
  "data_types",
  "rust_ib2c",
- "uom",
 ]
 
 [[package]]
@@ -141,13 +140,3 @@ name = "unicode-ident"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d"
-
-[[package]]
-name = "uom"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd5cfe7d84f6774726717f358a37f5bca8fca273bed4de40604ad129d1107b49"
-dependencies = [
- "num-traits",
- "typenum",
-]

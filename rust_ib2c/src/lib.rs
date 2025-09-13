@@ -18,7 +18,7 @@ pub mod meta_signals;
 /// Re-exports commonly used items for easier access.
 pub mod prelude {
     pub use crate::traits::{Module, Group, MetaSignals, UpdateReceivePorts};
-    pub use crate::port::{SendPort, ReceivePort, OutputPort, InputPort};
+    pub use crate::port::{SendPort, ReceivePort, OutputPort, InputPort, ParameterPort};
     pub use crate::behavior_module::BehaviorModule;
     pub use crate::group::BehaviorGroup;
     pub use crate::fusion_module::MaximumFusion;
