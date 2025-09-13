@@ -103,13 +103,14 @@ where
                 if cfg!(feature = "print_state") {
                     eprintln!("(Module) Elapsed time: {:6?} Activity: {} Target Rating: {} Stimulation: {} Inhibition: {} Path: {}", 
                         elapsed, self.get_activity().unwrap_or(MetaSignal::LOW), target_rating, stimulation, inhibition, self.parent.path);   
+                    if elapsed > self.cycle_time {
+                        eprintln!("Warning: Module '{}' is running behind schedule! Cycle time: {:?}, Elapsed time: {:?}", self.name, self.cycle_time, elapsed);
+                    }
                 }
 
                 if elapsed < self.cycle_time {
                     std::thread::sleep(self.cycle_time - elapsed);
-                } else {
-                    eprintln!("Warning: Module '{}' is running behind schedule! Cycle time: {:?}, Elapsed time: {:?}", self.name, self.cycle_time, elapsed);
-                }
+                } 
             }
         });
 

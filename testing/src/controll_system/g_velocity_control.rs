@@ -30,5 +30,7 @@ impl Group for VelocityControl {
         };
 
         self.out_velocity.connect_to_source(&maximum_fusion.output);   
+
+        self.set_characteristic_module(&mut maximum_fusion);
     }
 }
