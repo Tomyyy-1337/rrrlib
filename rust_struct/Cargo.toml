@@ -7,3 +7,5 @@ edition = "2024"
 rust_ib2c_shared_data = { path = "../rust_ib2c_shared_data" }
 serde = { version = "1.0.220", features = ["derive"] }
 serde_json = "1.0.143"
+iced = { version = "0.13.1", features = ["tokio"] }
+tokio = { version = "1.47.1", features = ["full"] }
