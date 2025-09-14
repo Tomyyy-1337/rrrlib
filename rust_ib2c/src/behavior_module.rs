@@ -1,6 +1,8 @@
-use std::ops::{Deref, DerefMut};
+use std::{fmt::format, ops::{Deref, DerefMut}};
 
-use crate::prelude::*;
+use rust_ib2c_shared_data::SharedData;
+
+use crate::{prelude::*, tcp_server::Parent};
 
 /// Behavior module wrapper to run modules in their own threads.
 pub struct BehaviorModule<M> 
@@ -11,7 +13,8 @@ where
     pub module: M,
     cycle_time: std::time::Duration,
     last_update: std::time::Instant,
-    path: String,
+    parent: Parent,
+    loop_count: u64,
 }
 
 impl<M> DerefMut for BehaviorModule<M> 
@@ -39,13 +42,17 @@ where
     M: Module + Send + 'static
 {
     /// Creates a new behavior module with the given name and cycle time.
-    pub fn with_name(name: &str, cycle_time: std::time::Duration, parent: &str) -> Self {
+    pub fn with_name(name: &str, cycle_time: std::time::Duration, parent: &Parent) -> Self {
         Self {
             name: name.to_string(),
             module: M::init(),
             cycle_time,
             last_update: std::time::Instant::now(),
-            path: format!("{}/{}", parent, name),
+            parent: Parent {
+                path: format!("{}/{}", parent.path, name),
+                tcp_server: parent.tcp_server.clone(),
+            },
+            loop_count: 0,
         }
     }
 
@@ -78,12 +85,24 @@ where
                 self.set_activity(activity);
                 self.set_target_rating(target_rating);
 
+                self.loop_count += 1;
+
                 let elapsed = start.elapsed();
+
+                let shared_data = SharedData {
+                    index: self.loop_count,
+                    source: self.parent.path.clone(),
+                    activity: *activity,
+                    target_rating: *target_rating,
+                    stimulation: *stimulation,
+                    inhibition: *inhibition,
+                };
+                self.parent.tcp_server.send(shared_data);
 
                 // only active with compiler flag "print_state"
                 if cfg!(feature = "print_state") {
                     eprintln!("(Module) Elapsed time: {:6?} Activity: {} Target Rating: {} Stimulation: {} Inhibition: {} Path: {}", 
-                        elapsed, self.get_activity().unwrap_or(MetaSignal::LOW), target_rating, stimulation, inhibition, self.path);   
+                        elapsed, self.get_activity().unwrap_or(MetaSignal::LOW), target_rating, stimulation, inhibition, self.parent.path);   
                 }
 
                 if elapsed < self.cycle_time {

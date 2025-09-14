@@ -1,3 +1,3 @@
 [workspace]
 resolver = "3"
-members = [ "data_types", "rust_ib2c", "testing"]
+members = [ "data_types", "rust_ib2c", "rust_ib2c_shared_data", "rust_struct", "testing" ]

@@ -11,6 +11,8 @@ pub mod fusion_module;
 /// Data structures and utilities for meta-signals.
 pub mod meta_signals;
 
+pub mod tcp_server;
+
 /// Re-exports commonly used items for easier access.
 pub mod prelude {
     pub use crate::traits::{Module, Group, MetaSignals, UpdateReceivePorts};
@@ -19,6 +21,7 @@ pub mod prelude {
     pub use crate::group::BehaviorGroup;
     pub use crate::fusion_module::MaximumFusion;
     pub use crate::meta_signals::MetaSignal;
+    pub use crate::tcp_server::Parent;
     pub use ib2c_macros::module;
     pub use ib2c_macros::group;
     pub use ib2c_macros::ports;

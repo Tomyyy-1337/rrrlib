@@ -17,7 +17,7 @@ pub struct ControlSystem {
 
 impl Group for ControlSystem {
     #[spawn]
-    fn init(&mut self, cycle_time: Duration, parent: &str) {
+    fn init(&mut self, cycle_time: Duration, parent: &Parent) {
         let velocity_control = BehaviorGroup::<VelocityControl>::with_name("VelocityControl", cycle_time, parent);
         velocity_control.in_front_distance_sensor.connect_to_source(&self.in_front_distance_sensor);
         self.out_velocity.connect_to_source(&velocity_control.out_velocity);   

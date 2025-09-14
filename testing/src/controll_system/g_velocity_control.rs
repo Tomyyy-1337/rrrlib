@@ -14,7 +14,7 @@ pub struct VelocityControl {
 
 impl Group for VelocityControl {
     #[spawn]
-    fn init(&mut self, cycle_time: Duration, parent: &str) {
+    fn init(&mut self, cycle_time: Duration, parent: &Parent) {
         let break_on_obstacle = BehaviorModule::<BreakOnObstacle>::with_name("BreakOnObstacle", cycle_time, parent);
         break_on_obstacle.in_distance.connect_to_source(&self.in_front_distance_sensor);
 

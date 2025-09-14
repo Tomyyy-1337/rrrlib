@@ -1,4 +1,6 @@
-use crate::{prelude::*};
+use rust_ib2c_shared_data::SharedData;
+
+use crate::{prelude::*, tcp_server::Parent};
 
 /// Macro to connect multiple module output ports to a fusion module.
 /// # Example
@@ -40,7 +42,8 @@ pub struct MaximumFusion<D: Clone> {
     target_ratings: Vec<ReceivePort<MetaSignal>>,
     data_ports: Vec<ReceivePort<D>>,
     cycle_time: std::time::Duration,
-    path: String,
+    parent: Parent,
+    loop_count: u64,
 }
 
 impl<D> MaximumFusion<D> 
@@ -49,14 +52,18 @@ where
     Self: Send + 'static
 {
     /// Creates a new fusion module with the given name and cycle time.
-    pub fn with_name(name: &str, cycle_time: std::time::Duration, parent: &str) -> Self {
+    pub fn with_name(name: &str, cycle_time: std::time::Duration, parent: &Parent) -> Self {
         Self {
             name: name.to_string(),
             output: SendPort::default(),
             activitys: Vec::new(),
             data_ports: Vec::new(),
             cycle_time,
-            path: format!("{}/{}", parent, name),
+            parent: Parent {
+                path: format!("{}/{}", parent.path, name),
+                tcp_server: parent.tcp_server.clone(),
+            },
+            loop_count: 0,
             ..Default::default()
         }
     }
@@ -121,11 +128,24 @@ where
                     self.set_target_rating(target_rating);
                     self.output.send(output);
                 }
+
+                self.loop_count += 1;
+
+                let shared_data = SharedData {
+                    index: self.loop_count,
+                    source: self.parent.path.clone(),
+                    activity: *self.activity.get().unwrap_or(MetaSignal::LOW),
+                    target_rating: *self.target_rating.get().unwrap_or(MetaSignal::LOW),
+                    stimulation: 0.0,
+                    inhibition: 0.0,
+                };
+                self.parent.tcp_server.send(shared_data);
+
                 let elapsed = start.elapsed();
 
                 if cfg!(feature = "print_state") {
                     eprintln!("(Fusion) Elapsed time: {:6?} Activity: {} Target Rating: {}                              Path: {}",
-                        elapsed, self.get_activity().unwrap_or(MetaSignal::LOW), self.get_target_rating().unwrap_or(MetaSignal::LOW), self.path);
+                        elapsed, self.get_activity().unwrap_or(MetaSignal::LOW), self.get_target_rating().unwrap_or(MetaSignal::LOW), self.parent.path);
                 }
 
                 if elapsed < self.cycle_time {

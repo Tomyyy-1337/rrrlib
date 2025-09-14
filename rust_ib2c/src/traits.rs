@@ -1,5 +1,5 @@
 use std::time::Duration;
-use crate::prelude::*;
+use crate::{prelude::*, tcp_server::Parent};
 
 /// Module trait for behavior modules. Can be spawned using the [`BehaviorModule`] struct.
 pub trait Module: UpdateReceivePorts + MetaSignals + Default {
@@ -12,7 +12,7 @@ pub trait Module: UpdateReceivePorts + MetaSignals + Default {
 
 /// Module trait for groups of behavior modules. Can be spawned using the [`BehaviorGroup`] struct.
 pub trait Group: MetaSignals + UpdateReceivePorts + Default {
-    fn init(&mut self, cycle_time: std::time::Duration, path: &str);
+    fn init(&mut self, cycle_time: std::time::Duration, path: &Parent);
 }
 
 /// Trait for access to meta signals: activity, target rating, stimulation, inhibition
