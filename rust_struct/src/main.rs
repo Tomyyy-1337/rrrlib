@@ -25,7 +25,7 @@ fn subscription(_state: &State) -> Subscription<Message> {
 }
 
 async fn fetch_data(stream: Arc<Mutex<Option<TcpStream>>>) -> Option<Vec<SharedData>> {
-        let mut tcp_steam = stream.try_lock().ok()?;
+    let mut tcp_steam = stream.try_lock().ok()?;
     if tcp_steam.is_none() {
         let new_stream = TcpStream::connect("127.0.0.1:13337").ok()?;
         new_stream.set_nonblocking(true).ok()?;
@@ -95,7 +95,7 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
     Task::none()
 }
 
-fn view(state: &State) -> Element<Message> {
+fn view(state: &'_ State) -> Element<'_, Message> {
     let mut col = column![
         text("Module Data").size(40),
     ]
@@ -131,8 +131,6 @@ fn view(state: &State) -> Element<Message> {
             });
         col = col.push(container);
     }
-
-
 
     scrollable(col).into()
 }
