@@ -15,15 +15,15 @@ pub struct VelocityControl {
 impl Group for VelocityControl {
     #[spawn]
     fn init(&mut self, cycle_time: Duration, parent: &Parent) {
-        let break_on_obstacle = BehaviorModule::<BreakOnObstacle>::with_name("BreakOnObstacle", cycle_time, parent);
+        let break_on_obstacle = SpawnModule!(BreakOnObstacle, "BreakOnObstacle");
         break_on_obstacle.in_distance.connect_to_source(&self.in_front_distance_sensor);
 
-        let constant_velocity = BehaviorModule::<ConstantVelocity>::with_name("ConstantVelocity", cycle_time, parent);
+        let constant_velocity = SpawnModule!(ConstantVelocity, "ConstantVelocity");
         
-        let mut maximum_fusion = MaximumFusion::with_name("MaxFusion", cycle_time, parent);
-        connect_fusion! {
-            maximum_fusion,
-            ports: [
+        let mut maximum_fusion = SpawnFusion! {
+            MaximumFusion,
+            "MaximumFusion",
+            inputs: [
                 break_on_obstacle.out_velocity,
                 constant_velocity.out_velocity,
             ]

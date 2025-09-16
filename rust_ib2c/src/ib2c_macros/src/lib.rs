@@ -13,7 +13,7 @@ pub fn module(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let attrs = input.attrs.clone();
 
     let generics = input.generics.clone();
-    let (_, _, where_clause) = generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let fields = if let Fields::Named(fields_named) = input.fields.clone() {
         fields_named.named
@@ -23,6 +23,28 @@ pub fn module(_attr: TokenStream, item: TokenStream) -> TokenStream {
         });
     };
 
+    let all_port_names: Vec<_> = fields.iter().filter_map(|field| {
+        if let Type::Path(type_path) = &field.ty {
+            if let Some(ident) = type_path.path.segments.last().map(|s| &s.ident) {
+                if ident == "ReceivePort" || ident == "SendPort" {
+                    return field.ident.clone();
+                }
+            }
+        }
+        None
+    }).collect();
+
+    let parameter_port_names: Vec<_> = fields.iter().filter_map(|field| {
+        if let Type::Path(type_path) = &field.ty {
+            if let Some(ident) = type_path.path.segments.last().map(|s| &s.ident) {
+                if ident == "ParameterPort" {
+                    return field.ident.clone();
+                }
+            }
+        }
+        None
+    }).collect();
+
     let expanded = quote! {
         #(#attrs)*
         #[ports]
@@ -31,7 +53,27 @@ pub fn module(_attr: TokenStream, item: TokenStream) -> TokenStream {
         {
             #fields
         }
+
+        impl #impl_generics PortParsing for #struct_name #ty_generics
+        #where_clause
+        {
+            fn all_port_data(&self) -> Vec<(&'static str, PortData)> {
+                let mut port_data = Vec::new();
+                #(
+                    let param = self.#parameter_port_names.get();
+                    port_data.push((stringify!(#parameter_port_names), param.serialize_port_data()));
+                )*
+                #(
+                    if let Some(port_data_item) = self.#all_port_names.get() {
+                        port_data.push((stringify!(#all_port_names), port_data_item.serialize_port_data()));
+                    } 
+                )*
+                port_data
+            }
+        }
     };
+
+
 
     TokenStream::from(expanded)
 }
@@ -223,7 +265,90 @@ pub fn ports(_attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn spawn(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(item as ItemFn);
 
+    let local_macro_definition_1: Stmt = syn::parse_quote! {
+        #[allow(unused_macros)]
+        macro_rules! SpawnModule {
+            (
+                $module_type:ty, 
+                $name:expr
+            ) => {
+                SpawnModule!($module_type, $name, cycle_time)
+            };
+            (
+                $module_type:ty, 
+                $name:expr,
+                $cycle_time:expr
+            ) => {
+                BehaviorModule::<$module_type>::with_name($name, $cycle_time, parent)
+            };
+        }
+    };
+    input.block.stmts.insert(0, local_macro_definition_1);
+
+    let local_macro_definition_2: Stmt = syn::parse_quote! {
+        #[allow(unused_macros)]
+        macro_rules! SpawnGroup {
+            (
+                $module_type:ty, 
+                $name:expr
+            ) => {
+                SpawnGroup!($module_type, $name, cycle_time)
+            };
+            (
+                $module_type:ty, 
+                $name:expr,
+                $cycle_time:expr
+            ) => {
+                BehaviorGroup::<$module_type>::with_name($name, $cycle_time, parent)
+            };
+        }
+    };
+    input.block.stmts.insert(0, local_macro_definition_2);
+    
+    let local_macro_definition_3: Stmt = syn::parse_quote! {
+        #[allow(unused_macros)]
+        macro_rules! SpawnFusion {
+            (
+                $module_type:ident,
+                $name:expr,
+                inputs: [
+                    $( $module:ident . $port:ident ),*$(,)?
+                ]
+            ) => {
+                {
+                    let mut fusion_module = $module_type::with_name($name, cycle_time, parent);
+                    $(
+                        fusion_module.connect_module(&*$module, &$module.$port);
+                    )*
+                    fusion_module
+                }
+            };
+        }
+        
+    };
+    input.block.stmts.insert(0, local_macro_definition_3);
+
     let mut spawn_stmts = Vec::new();
+    for stmt in &input.block.stmts {
+        if let Stmt::Local(local) = stmt {
+            let var = if let Pat::Ident(pat_ident) = &local.pat {
+                &pat_ident.ident
+            } else {
+                continue;
+            };
+
+            if let Some(local_init) = &local.init {
+                if let syn::Expr::Macro(mac) = &*local_init.expr {
+                    let mac_path = &mac.mac.path;
+                    if mac_path.is_ident("SpawnModule") || mac_path.is_ident("SpawnFusion") {
+                        // Parse the quoted statement into a Stmt
+                        let stmt: Stmt = syn::parse_quote! { #var.spawn(); };
+                        spawn_stmts.push(stmt);
+                    }
+                }
+            }
+        }
+    }
     for stmt in &input.block.stmts {
         if let Stmt::Local(local) = stmt {
             let var = if let Pat::Ident(pat_ident) = &local.pat {

@@ -3486,16 +3486,20 @@ dependencies = [
 name = "rust_ib2c"
 version = "0.1.0"
 dependencies = [
+ "data_types",
  "ib2c_macros",
+ "num-traits",
  "rust_ib2c_shared_data",
  "serde",
  "serde_json",
+ "typenum",
 ]
 
 [[package]]
 name = "rust_ib2c_shared_data"
 version = "0.1.0"
 dependencies = [
+ "data_types",
  "serde",
  "serde_json",
 ]

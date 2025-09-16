@@ -1,8 +1,34 @@
 use std::time::Duration;
+use rust_ib2c_shared_data::PortData;
+
 use crate::{prelude::*, tcp_server::Parent};
 
 /// Module trait for behavior modules. Can be spawned using the [`BehaviorModule`] struct.
-pub trait Module: UpdateReceivePorts + MetaSignals + Default {
+pub trait Module: UpdateReceivePorts + MetaSignals + PortParsing + Default {
+    /// Spawn other modules and groups here and connect them.
+    /// 
+    /// Use the SpawnModule!, SpawnGroup! and SpawnFusion! macros to create instances.
+    /// # Examples
+    /// ```rust
+    /// fn init(&mut self, cycle_time: Duration, parent: &Parent) {
+    ///    let break_on_obstacle = SpawnModule!(BreakOnObstacle, "BreakOnObstacle");
+    ///    break_on_obstacle.in_distance.connect_to_source(&self.in_front_distance_sensor);
+    ///
+    ///    let constant_velocity = SpawnModule!(ConstantVelocity, "ConstantVelocity");
+    ///    
+    ///    let mut maximum_fusion = SpawnFusion! {
+    ///        MaximumFusion,
+    ///        "MaximumFusion",
+    ///        inputs: [
+    ///            break_on_obstacle.out_velocity,
+    ///            constant_velocity.out_velocity,
+    ///        ]
+    ///    };
+    ///
+    ///    self.out_velocity.connect_to_source(&maximum_fusion.output);   
+    ///
+    ///    self.set_characteristic_module(&mut maximum_fusion);
+    ///}
     fn init() -> Self {
         Self::default()
     }
@@ -30,7 +56,15 @@ pub trait MetaSignals {
     fn set_delta_time(&mut self, delta_time: Duration);
 }
 
+pub trait PortParsing {
+    fn all_port_data(&self) -> Vec<(&'static str, PortData)>;
+}
+
 /// Trait for updating all receive ports of modules and groups.
 pub trait UpdateReceivePorts {
     fn update_all_ports(&mut self);
+}
+
+pub trait PortSerialization {
+    fn serialize_port_data(&self) -> PortData;
 }

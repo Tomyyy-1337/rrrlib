@@ -89,6 +89,8 @@ where
 
                 let elapsed = start.elapsed();
 
+                let port_data = self.module.all_port_data();
+
                 let shared_data = SharedData {
                     index: self.loop_count,
                     source: self.parent.path.clone(),
@@ -96,6 +98,7 @@ where
                     target_rating: *target_rating,
                     stimulation: *stimulation,
                     inhibition: *inhibition,
+                    data: port_data.into_iter().map(|(name, data)| (name.to_string(), data)).collect(),
                 };
                 self.parent.tcp_server.send(shared_data);
 

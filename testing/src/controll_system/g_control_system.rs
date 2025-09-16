@@ -18,11 +18,11 @@ pub struct ControlSystem {
 impl Group for ControlSystem {
     #[spawn]
     fn init(&mut self, cycle_time: Duration, parent: &Parent) {
-        let velocity_control = BehaviorGroup::<VelocityControl>::with_name("VelocityControl", cycle_time, parent);
+        let velocity_control = SpawnGroup!(VelocityControl, "VelocityControl");
         velocity_control.in_front_distance_sensor.connect_to_source(&self.in_front_distance_sensor);
         self.out_velocity.connect_to_source(&velocity_control.out_velocity);   
 
-        let turn_away = BehaviorModule::<TurnAway>::with_name("TurnAway", cycle_time, parent);
+        let turn_away = SpawnModule!(TurnAway,"TurnAway");
         turn_away.in_distance.connect_to_source(&self.in_front_distance_sensor);
         turn_away.in_left_distance.connect_to_source(&self.in_left_distance_sensor);
         turn_away.in_right_distance.connect_to_source(&self.in_right_distance_sensor);

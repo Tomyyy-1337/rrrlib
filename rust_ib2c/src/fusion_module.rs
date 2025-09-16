@@ -1,6 +1,6 @@
 use rust_ib2c_shared_data::SharedData;
 
-use crate::{prelude::*, tcp_server::Parent};
+use crate::{prelude::*, tcp_server::Parent, traits::PortSerialization};
 
 /// Macro to connect multiple module output ports to a fusion module.
 /// # Example
@@ -35,7 +35,7 @@ macro_rules! connect_fusion {
 /// If multiple modules have the same activity, the first one encountered is chosen.
 /// The order of modules is determined by the order in which they are connected to the fusion module.
 #[ports]
-pub struct MaximumFusion<D: Clone> {
+pub struct MaximumFusion<D: Clone + PortSerialization> {
     name: String,
     pub output: SendPort<D>,
     activitys: Vec<ReceivePort<MetaSignal>>,
@@ -48,7 +48,7 @@ pub struct MaximumFusion<D: Clone> {
 
 impl<D> MaximumFusion<D> 
 where
-    D: Clone + Default + Send + 'static,
+    D: Clone + Default + Send + PortSerialization + 'static,
     Self: Send + 'static
 {
     /// Creates a new fusion module with the given name and cycle time.
@@ -66,6 +66,21 @@ where
             loop_count: 0,
             ..Default::default()
         }
+    }
+
+    pub fn serialize_port_data(&self) -> Vec<(String, PortData)> {
+        let mut port_data = Vec::new();
+        for (index, (data_port, activity_port)) in self.data_ports.iter().zip(self.activitys.iter()).enumerate() {
+            if let Some(data) = data_port.get() && let Some(activity) = activity_port.get() {
+                port_data.push((format!("data_port_{}", index), data.serialize_port_data()));
+                port_data.push((format!("activity_{}", index), PortData::MetaSignal(**activity)));
+            }
+        }
+        if let Some(output) = self.output.get() {
+            port_data.push(("output".to_string(), output.serialize_port_data()));
+        }
+
+        port_data
     }
 
     /// Connects a module's output port to the fusion module. Use the [`connect_fusion!`] macro to connect multiple modules at once.
@@ -87,7 +102,6 @@ where
         let mut best_data= None;
         let mut max_activity = MetaSignal::LOW;
         let mut best_index = 0;
-
         
         for (index, activity_port) in self.activitys.iter().enumerate() {
             if let Some(activity) = activity_port.get() {
@@ -131,6 +145,8 @@ where
 
                 self.loop_count += 1;
 
+                let port_data = self.serialize_port_data();
+
                 let shared_data = SharedData {
                     index: self.loop_count,
                     source: self.parent.path.clone(),
@@ -138,6 +154,7 @@ where
                     target_rating: *self.target_rating.get().unwrap_or(MetaSignal::LOW),
                     stimulation: 0.0,
                     inhibition: 0.0,
+                    data: port_data
                 };
                 self.parent.tcp_server.send(shared_data);
 

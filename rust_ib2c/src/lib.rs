@@ -15,7 +15,7 @@ pub mod tcp_server;
 
 /// Re-exports commonly used items for easier access.
 pub mod prelude {
-    pub use crate::traits::{Module, Group, MetaSignals, UpdateReceivePorts};
+    pub use crate::traits::{Module, Group, MetaSignals, UpdateReceivePorts, PortSerialization, PortParsing};
     pub use crate::port::{SendPort, ReceivePort, OutputPort, InputPort, ParameterPort};
     pub use crate::behavior_module::BehaviorModule;
     pub use crate::group::BehaviorGroup;
@@ -27,4 +27,5 @@ pub mod prelude {
     pub use ib2c_macros::ports;
     pub use ib2c_macros::spawn;
     pub use crate::connect_fusion;
+    pub use rust_ib2c_shared_data::PortData;
 }

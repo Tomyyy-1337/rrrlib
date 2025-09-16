@@ -8,10 +8,10 @@ use std::time::Duration;
 use iced::border::Radius;
 use iced::widget::container::Style;
 use iced::widget::shader::wgpu::naga::Module;
-use iced::widget::{button, column, scrollable, text, Column};
-use iced::{window, Border, Element, Subscription, Task};
+use iced::widget::{button, column, row, scrollable, text, Column, Row};
+use iced::{window, Border, Element, Length, Subscription, Task};
 
-use rust_ib2c_shared_data::SharedData;
+use rust_ib2c_shared_data::{PortData, SharedData};
 use tokio::net::tcp;
 
 pub fn main() -> iced::Result {
@@ -109,15 +109,39 @@ fn view(state: &'_ State) -> Element<'_, Message> {
     }
 
     for (key, data) in &state.module_data {
-        let inner_col: Column<_> = column![
-            text(format!("Source: {}", key)).size(20),
-            text(format!("Index: {}", data.index)).size(16),
-            text(format!("Activity: {:.2}", data.activity)).size(16),
-            text(format!("Target Rating: {:.2}", data.target_rating)).size(16),
-            text(format!("Stimulation: {:.2}", data.stimulation)).size(16),
-            text(format!("Inhibition: {:.2}", data.inhibition)).size(16),
-        ];
-        let container = iced::widget::Container::new(inner_col)
+        let mut outer_col = column![];
+        let mut outer_row = row![];
+        let mut inner_col = column![].width(Length::FillPortion(1));
+        outer_col = outer_col.push(text(key).size(26));
+        inner_col = inner_col.push(text("Meta Data:").size(20));
+        inner_col = inner_col.push(row![
+            text("Index:").width(Length::Fixed(200.0)), text(data.index),
+        ]);
+        inner_col = inner_col.push(row![
+            text("Activity:").width(Length::Fixed(200.0)), text(format!("{:.2}", data.activity)),
+        ]);
+        inner_col = inner_col.push(row![
+            text("Target Rating:").width(Length::Fixed(200.0)), text(format!("{:.2}", data.target_rating)),
+        ]);
+        inner_col = inner_col.push(row![
+            text("Stimulation:").width(Length::Fixed(200.0)), text(format!("{:.2}", data.stimulation)),
+        ]);
+        inner_col = inner_col.push(row![
+            text("Inhibition:").width(Length::Fixed(200.0)), text(format!("{:.2}", data.inhibition)),
+        ]);
+        outer_row = outer_row.push(inner_col);
+        let mut inner_col = column![].width(Length::FillPortion(1));
+        inner_col = inner_col.push(text("Port Data:").size(20));
+        for (port_name, port_data) in data.data.iter() {
+            inner_col = inner_col.push(row![
+                text(port_name).width(Length::Fixed(200.0)), text(format!("{}", port_data)),
+            ]);
+        }
+        outer_row = outer_row.push(inner_col);
+        outer_col = outer_col.push(outer_row);
+
+
+        let container = iced::widget::Container::new(outer_col)
             .padding(10)
             .width(iced::Length::Fill)
             .style(|_| Style {

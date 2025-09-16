@@ -1,20 +1,68 @@
 use std::{ops::Deref, sync::{Arc, RwLock}};
 
-struct PortBuffer<T: Clone> {
+use rust_ib2c_shared_data::PortData;
+use data_types::si_units::SiValue;
+use typenum::Integer;
+
+use crate::{prelude::MetaSignal, traits::PortSerialization};
+
+macro_rules! SerializePortData {
+    ($t:ty, $conversion:expr) => {
+        impl PortSerialization for $t {
+            fn serialize_port_data(&self) -> PortData {
+                $conversion(self)
+            }
+        }
+    };
+    () => {
+        
+    };
+}
+
+SerializePortData!(i32, |v: &i32| PortData::Int(*v as i64));
+SerializePortData!(i64, |v: &i64| PortData::Int(*v));
+SerializePortData!(u32, |v: &u32| PortData::Unsigned(*v as u64));
+SerializePortData!(u64, |v: &u64| PortData::Unsigned(*v));
+SerializePortData!(f32, |v: &f32| PortData::Float(*v as f64));
+SerializePortData!(f64, |v: &f64| PortData::Float(*v));
+SerializePortData!(bool, |v: &bool| PortData::Bool(*v));
+SerializePortData!(String, |v: &String| PortData::String(v.clone()));
+SerializePortData!(str, |v: &str| PortData::String(v.to_string()));
+SerializePortData!(MetaSignal, |v: &MetaSignal| PortData::MetaSignal(**v));
+
+impl<A,B,C,D,E,F,G> PortSerialization for SiValue<A,B,C,D,E,F,G> 
+where
+    A: Integer,
+    B: Integer,
+    C: Integer,
+    D: Integer,
+    E: Integer,
+    F: Integer,
+    G: Integer
+{
+    fn serialize_port_data(&self) -> PortData {
+        PortData::SiValue {
+            value: self.as_value_in_base_units(),
+            unit: self.unit_str(),
+        }
+    }
+}
+
+struct PortBuffer<T: Clone + PortSerialization> {
     buffer: Option<T>,
 }
 
-enum PortMode<T: Clone> {
+enum PortMode<T: Clone + PortSerialization> {
     Buffer(PortBuffer<T>),
     Passthrough(Port<T>),
 }
 
 /// Internal port structure used by [`SendPort`] and [`ReceivePort`]
-pub struct Port<T: Clone> {
+pub struct Port<T: Clone + PortSerialization> {
     mode: Arc<RwLock<PortMode<T>>>,
 }
 
-impl<T: Clone> Clone for Port<T> {
+impl<T: Clone + PortSerialization> Clone for Port<T> {
     fn clone(&self) -> Self {
         Self {
             mode: Arc::clone(&self.mode),
@@ -22,7 +70,7 @@ impl<T: Clone> Clone for Port<T> {
     }
 }
 
-impl<T: Clone> Port<T> {
+impl<T: Clone + PortSerialization> Port<T> {
     fn send(&self, data: T) {
         if let PortMode::Passthrough(source_port) = &*self.mode.read().unwrap() {
             source_port.send(data);
@@ -54,17 +102,17 @@ impl<T: Clone> Port<T> {
 } 
 
 /// Sending port used to send data to connected [`ReceivePort`]s
-pub struct SendPort<T: Clone> {
+pub struct SendPort<T: Clone + PortSerialization> {
     inner: Port<T>,
 }
 
 /// Receiving port used to receive data from a connected [`SendPort`]
-pub struct ReceivePort<T: Clone> {
+pub struct ReceivePort<T: Clone + PortSerialization> {
     inner: Port<T>,
     buffer: Option<T>,
 }
 
-impl<T: Clone> Deref for SendPort<T> {
+impl<T: Clone + PortSerialization> Deref for SendPort<T> {
     type Target = Port<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -72,7 +120,7 @@ impl<T: Clone> Deref for SendPort<T> {
     }
 }
 
-impl<T: Clone> Deref for ReceivePort<T> {
+impl<T: Clone + PortSerialization> Deref for ReceivePort<T> {
     type Target = Port<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -80,7 +128,7 @@ impl<T: Clone> Deref for ReceivePort<T> {
     }
 }
 
-impl<T: Clone> Default for SendPort<T> {
+impl<T: Clone + PortSerialization> Default for SendPort<T> {
     fn default() -> Self {
         Self {
             inner: Port {
@@ -89,8 +137,7 @@ impl<T: Clone> Default for SendPort<T> {
         }
     }
 }
-
-impl<T: Clone> Clone for SendPort<T> {
+impl<T: Clone + PortSerialization> Clone for SendPort<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -98,7 +145,7 @@ impl<T: Clone> Clone for SendPort<T> {
     }
 }
 
-impl<T: Clone> Default for ReceivePort<T> {
+impl<T: Clone + PortSerialization> Default for ReceivePort<T> {
     fn default() -> Self {
         Self {
             inner: Port {
@@ -109,7 +156,7 @@ impl<T: Clone> Default for ReceivePort<T> {
     }
 }
 
-impl<T: Clone> Clone for ReceivePort<T> {
+impl<T: Clone + PortSerialization> Clone for ReceivePort<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -118,7 +165,7 @@ impl<T: Clone> Clone for ReceivePort<T> {
     }
 }
 
-impl<T: Clone> SendPort<T> {
+impl<T: Clone + PortSerialization> SendPort<T> {
     /// Send data to connected [`ReceivePort`]s
     pub fn send(&self, data: T) {
         self.inner.send(data);
@@ -148,7 +195,7 @@ impl<T: Clone> SendPort<T> {
     }
 }
 
-impl<T: Clone> ReceivePort<T> {
+impl<T: Clone + PortSerialization> ReceivePort<T> {
     /// Connect this [`ReceivePort`] to a source [`Port`] ([`SendPort`] or [`ReceivePort`])
     pub fn connect_to_source(&self, source: &Port<T>) {
         self.inner.connect_to_source(source);
@@ -179,12 +226,13 @@ impl<T: Clone> ReceivePort<T> {
     }
 }
 
-pub struct ParameterPort<T: Clone> {
+
+pub struct ParameterPort<T: Clone + PortSerialization> {
     inner: Port<T>,
     buffer: T,
 }
 
-impl<T: Clone + Default> ParameterPort<T> {
+impl<T: Clone + Default + PortSerialization> ParameterPort<T> {
     // Set the parameter value.
     pub fn set(&self, data: T) {
         self.inner.send(data);
@@ -213,7 +261,7 @@ impl<T: Clone + Default> ParameterPort<T> {
     }
 }
 
-impl<T: Clone + Default> Default for ParameterPort<T> {
+impl<T: Clone + Default + PortSerialization> Default for ParameterPort<T> {
     fn default() -> Self {
         Self {
             inner: Port { 
@@ -226,11 +274,11 @@ impl<T: Clone + Default> Default for ParameterPort<T> {
 
 /// Used as outputs of the controll system to read data from modules and groups 
 /// from outside the system;
-pub struct OutputPort<T: Clone> {
+pub struct OutputPort<T: Clone + PortSerialization> {
     source: Port<T>,
 }
 
-impl<T: Clone> OutputPort<T> {
+impl<T: Clone + PortSerialization> OutputPort<T> {
     pub fn get(&self) -> Option<T> {
         self.source.get()
     }
@@ -243,7 +291,7 @@ impl<T: Clone> OutputPort<T> {
     }
 }
 
-impl<T: Clone> From<&SendPort<T>> for OutputPort<T> {
+impl<T: Clone + PortSerialization> From<&SendPort<T>> for OutputPort<T> {
     fn from(port: &SendPort<T>) -> Self {
         Self {
             source: port.inner.clone(),
@@ -252,17 +300,17 @@ impl<T: Clone> From<&SendPort<T>> for OutputPort<T> {
 }
 
 /// Used as inputs to the controll system to write data to modules and groups
-pub struct InputPort<T: Clone> {
+pub struct InputPort<T: Clone + PortSerialization> {
     target: Port<T>
 }
 
-impl<T: Clone> InputPort<T> {
+impl<T: Clone + PortSerialization> InputPort<T> {
     pub fn set(&mut self, data: T) {
         self.target.send(data);
     }
 }
 
-impl<T: Clone> From<&ReceivePort<T>> for InputPort<T> {
+impl<T: Clone + PortSerialization> From<&ReceivePort<T>> for InputPort<T> {
     fn from(port: &ReceivePort<T>) -> Self {
         Self {
             target: port.inner.clone(),
