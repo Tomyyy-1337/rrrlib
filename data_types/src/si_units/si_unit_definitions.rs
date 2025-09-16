@@ -1,7 +1,6 @@
 use core::fmt;
-use std::process::Output;
 use std::{marker::PhantomData};
-use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use typenum::{Diff, Integer, Negate, Sum, N1, N2, N3, P1, P2, P3, P4, Z0};
 
 use crate::si_units::si_macros::{impl_unit_conversions, new_types};

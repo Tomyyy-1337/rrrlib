@@ -1,6 +1,33 @@
-use std::{hash::Hash, ops::{Deref, DerefMut}};
+use std::ops::{Deref, DerefMut};
 
-use crate::{prelude::*, tcp_server::{self, Parent, TcpServer}};
+use crate::{prelude::*, tcp_server::{Parent, TcpServer}};
+
+/// Macro to spawn the main behavior group.
+/// # Example
+/// ```rust
+/// use std::time::Duration;
+/// use rust_ib2c::prelude::*;
+/// 
+/// [group]
+/// struct MyMainGroup {
+///     // Define your ports here
+/// }
+/// 
+/// impl Group for MyMainGroup {
+///   [spawn]
+///   fn init(&mut self, _cycle_time: Duration, _parent: &Parent) {
+///       // Initialize your group here
+///   }
+/// }
+/// fn main() {
+///     let main_group = SpawnMainGroup!(MyMainGroup, "MyMainGroup", Duration::from_millis(100));
+/// }
+#[macro_export]
+macro_rules! SpawnMainGroup {
+    ($group_type:ty, $name:expr, $cycle_time:expr) => {
+        BehaviorGroup::<$group_type>::main_group($name, $cycle_time)
+    };
+}
 
 /// Behavior group wrapper to run groups in their own threads.
 pub struct BehaviorGroup<M> 

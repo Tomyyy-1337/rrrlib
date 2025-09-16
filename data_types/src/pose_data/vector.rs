@@ -1,4 +1,4 @@
-use std::{fmt::Display, hash::Hash, ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}, path::Iter};
+use std::{fmt::Display, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign}};
 
 pub type Vector2<T> = Vector<T, 2>;
 pub type Vector3<T> = Vector<T, 3>;

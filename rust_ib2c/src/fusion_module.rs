@@ -2,35 +2,6 @@ use rust_ib2c_shared_data::SharedData;
 
 use crate::{prelude::*, tcp_server::Parent, traits::PortSerialization};
 
-/// Macro to connect multiple module output ports to a fusion module.
-/// # Example
-/// 
-/// ```rust ignore
-/// let module1 = BehaviorModule::<Module1>::with_name("Sender 1", cycle_time);
-/// let module2 = BehaviorModule::<Module2>::with_name("Sender 2", cycle_time);
-/// let mut fusion_module = MaximumFusion::with_name("Fusion", cycle_time);
-/// connect_fusion!{
-///     fusion_module,
-///     ports: [
-///         module1.out_data,
-///         module2.out_data
-///     ]
-/// }
-/// ```
-#[macro_export]
-macro_rules! connect_fusion {
-    (
-        $fusion_module:expr,
-        ports: [
-            $( $module:ident . $port:ident ),+$(,)?
-        ]
-    ) => {
-        $(
-            $fusion_module.connect_module(&*$module, &$module.$port);
-        )+
-    };
-}
-
 /// Fusion module that selects the output from the module with the highest activity.
 /// If multiple modules have the same activity, the first one encountered is chosen.
 /// The order of modules is determined by the order in which they are connected to the fusion module.
@@ -149,8 +120,9 @@ where
 
                 let shared_data = SharedData {
                     index: self.loop_count,
+                    active_time: start.elapsed(),
                     source: self.parent.path.clone(),
-                    activity: *self.activity.get().unwrap_or(MetaSignal::LOW),
+                    activity: *self.activity.get().unwrap_or(MetaSignal::HIGH),
                     target_rating: *self.target_rating.get().unwrap_or(MetaSignal::LOW),
                     stimulation: 0.0,
                     inhibition: 0.0,

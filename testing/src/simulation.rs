@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use nannou::{color::*, geom::Rect, event::Update, window, App, Frame};
-use rust_ib2c::prelude::*;
+use nannou::{color::*, event::Update, geom::Rect, glam::Vec2, lyon::geom::euclid::approxord::min, window, App, Frame};
+use rust_ib2c::{prelude::*, SpawnMainGroup};
 use data_types::prelude::*;
 
 use crate::controll_system::ControlSystem;
@@ -17,12 +17,16 @@ pub struct Model {
     in_right_distance_sensor: InputPort<Distance>,
     out_velocity: OutputPort<Velocity>,
     out_turn_rate: OutputPort<AngularVelocity>,
+
+    wall_distance_front: Distance,
+    wall_distance_left: Distance,
+    wall_distance_right: Distance,
 }
 
 pub fn model(app: &App) -> Model {
     let _window = app.new_window().view(view).build().unwrap();
 
-    let control_system = BehaviorGroup::<ControlSystem>::main_group("ControlSystem", Duration::from_millis(10));
+    let control_system = SpawnMainGroup!(ControlSystem, "MainGroup", Duration::from_millis(10));
 
     Model {
         _window,
@@ -33,6 +37,9 @@ pub fn model(app: &App) -> Model {
         in_right_distance_sensor: InputPort::from(&control_system.in_right_distance_sensor),
         car_position: Vector2::default(),
         car_orientation: Rotation2D::from_angle(0.0),
+        wall_distance_front: Distance::ZERO,
+        wall_distance_left: Distance::ZERO,
+        wall_distance_right: Distance::ZERO,
     }
 }
 
@@ -49,16 +56,19 @@ pub fn update(app: &App, model: &mut Model, update: Update) {
     
     let min_distance = Distance::min(wall_distance_front, mouse_distance);
     model.in_front_distance_sensor.set(min_distance);
+    model.wall_distance_front = min_distance;
 
     let min_distance_left = Distance::min(wall_distance_left, mouse_distance_left);
     model.in_left_distance_sensor.set(min_distance_left);
     let min_distance_right = Distance::min(wall_distance_right, mouse_distance_right);
     model.in_right_distance_sensor.set(min_distance_right);
+    model.wall_distance_left = min_distance_left;
     
     let velocity = model.out_velocity.get_or_default();
     let delta_time = Time::seconds(update.since_last.as_secs_f64());
     let velocity_vector = model.car_orientation.as_unit_vector() * velocity;
     model.car_position += velocity_vector * delta_time;
+    model.wall_distance_right = min_distance_right;
 
     let turn_rate = model.out_turn_rate.get_or_default();
     if velocity > Velocity::meters_per_second(0.1) {
@@ -89,6 +99,45 @@ pub fn view(app: &App, model: &Model, frame: Frame) {
         )
         .w_h(100.0, 100.0)
         .color(RED);
+
+    // Visualize front sensor
+    let front_sensor_end = model.car_position + model.car_orientation.as_unit_vector() * model.wall_distance_front;
+    draw.line()
+        .start(Vec2::new(
+            model.car_position.x().as_centimeters() as f32,
+            model.car_position.y().as_centimeters() as f32,
+        ))
+        .end(Vec2::new(
+            front_sensor_end.x().as_centimeters() as f32,
+            front_sensor_end.y().as_centimeters() as f32,
+        ))
+        .color(GREEN);
+
+    // Visualize left sensor
+    let left_sensor_end = model.car_position + (model.car_orientation + Rotation2D::from_angle(1.0)).as_unit_vector() * model.wall_distance_left;
+    draw.line()
+        .start(Vec2::new(
+            model.car_position.x().as_centimeters() as f32,
+            model.car_position.y().as_centimeters() as f32,
+        ))
+        .end(Vec2::new(
+            left_sensor_end.x().as_centimeters() as f32,
+            left_sensor_end.y().as_centimeters() as f32,
+        ))
+        .color(BLUE);
+
+    // Visualize right sensor
+    let right_sensor_end = model.car_position + (model.car_orientation + (-1.0 * Rotation2D::from_angle(1.0))).as_unit_vector() * model.wall_distance_right;
+    draw.line()
+        .start(Vec2::new(
+            model.car_position.x().as_centimeters() as f32,
+            model.car_position.y().as_centimeters() as f32,
+        ))
+        .end(Vec2::new(
+            right_sensor_end.x().as_centimeters() as f32,
+            right_sensor_end.y().as_centimeters() as f32,
+        ))
+        .color(YELLOW);
 
     draw.to_frame(app, &frame).unwrap();
 }

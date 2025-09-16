@@ -10,7 +10,7 @@ pub struct Parent {
 }
 
 #[derive(Default)]
-pub(crate) struct TcpServer {
+pub struct TcpServer {
     buffer: Arc<Mutex<Option<SharedData>>>,
 }
 

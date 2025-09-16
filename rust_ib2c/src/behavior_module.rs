@@ -1,4 +1,4 @@
-use std::{fmt::format, ops::{Deref, DerefMut}};
+use std::ops::{Deref, DerefMut};
 
 use rust_ib2c_shared_data::SharedData;
 
@@ -87,12 +87,11 @@ where
 
                 self.loop_count += 1;
 
-                let elapsed = start.elapsed();
-
                 let port_data = self.module.all_port_data();
-
+                
                 let shared_data = SharedData {
                     index: self.loop_count,
+                    active_time: start.elapsed(),
                     source: self.parent.path.clone(),
                     activity: *activity,
                     target_rating: *target_rating,
@@ -101,7 +100,8 @@ where
                     data: port_data.into_iter().map(|(name, data)| (name.to_string(), data)).collect(),
                 };
                 self.parent.tcp_server.send(shared_data);
-
+                
+                let elapsed = start.elapsed();
                 // only active with compiler flag "print_state"
                 if cfg!(feature = "print_state") {
                     eprintln!("(Module) Elapsed time: {:6?} Activity: {} Target Rating: {} Stimulation: {} Inhibition: {} Path: {}", 

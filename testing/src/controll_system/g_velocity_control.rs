@@ -22,7 +22,7 @@ impl Group for VelocityControl {
         
         let mut maximum_fusion = SpawnFusion! {
             MaximumFusion,
-            "MaximumFusion",
+            "VelocityFusion",
             inputs: [
                 break_on_obstacle.out_velocity,
                 constant_velocity.out_velocity,

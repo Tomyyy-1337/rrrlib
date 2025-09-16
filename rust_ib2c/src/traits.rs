@@ -56,6 +56,7 @@ pub trait MetaSignals {
     fn set_delta_time(&mut self, delta_time: Duration);
 }
 
+/// Internal trait to get all port data of a module for serialization 
 pub trait PortParsing {
     fn all_port_data(&self) -> Vec<(&'static str, PortData)>;
 }
@@ -65,6 +66,7 @@ pub trait UpdateReceivePorts {
     fn update_all_ports(&mut self);
 }
 
+/// Required for serialization of port data.
 pub trait PortSerialization {
     fn serialize_port_data(&self) -> PortData;
 }

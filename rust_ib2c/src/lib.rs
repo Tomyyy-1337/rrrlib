@@ -10,8 +10,8 @@ pub mod group;
 pub mod fusion_module;
 /// Data structures and utilities for meta-signals.
 pub mod meta_signals;
-
-pub mod tcp_server;
+/// TCP server for remote monitoring and control of modules.
+pub(crate) mod tcp_server;
 
 /// Re-exports commonly used items for easier access.
 pub mod prelude {
@@ -26,6 +26,6 @@ pub mod prelude {
     pub use ib2c_macros::group;
     pub use ib2c_macros::ports;
     pub use ib2c_macros::spawn;
-    pub use crate::connect_fusion;
     pub use rust_ib2c_shared_data::PortData;
+    pub use crate::SpawnMainGroup;
 }

@@ -1,11 +1,12 @@
+use core::time;
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use data_types::prelude::*;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SharedData {
     pub index: u64,
+    pub active_time: time::Duration,
     pub activity: f32,
     pub target_rating: f32,
     pub stimulation: f32,

@@ -1,18 +1,15 @@
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use iced::border::Radius;
 use iced::widget::container::Style;
-use iced::widget::shader::wgpu::naga::Module;
-use iced::widget::{button, column, row, scrollable, text, Column, Row};
-use iced::{window, Border, Element, Length, Subscription, Task};
+use iced::widget::{column, row, scrollable, text};
+use iced::{Border, Element, Length, Subscription, Task};
 
-use rust_ib2c_shared_data::{PortData, SharedData};
-use tokio::net::tcp;
+use rust_ib2c_shared_data::SharedData;
 
 pub fn main() -> iced::Result {
     iced::application("Ruststruct", update, view)
@@ -115,7 +112,7 @@ fn view(state: &'_ State) -> Element<'_, Message> {
         outer_col = outer_col.push(text(key).size(26));
         inner_col = inner_col.push(text("Meta Data:").size(20));
         inner_col = inner_col.push(row![
-            text("Index:").width(Length::Fixed(200.0)), text(data.index),
+            text("Loop duration:").width(Length::Fixed(200.0)), text(format!("{:.3}ms", data.active_time.as_secs_f64()*1000.0)),
         ]);
         inner_col = inner_col.push(row![
             text("Activity:").width(Length::Fixed(200.0)), text(format!("{:.2}", data.activity)),
