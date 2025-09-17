@@ -12,7 +12,7 @@ pub struct BreakOnObstacle {
 impl Module for BreakOnObstacle {
     fn init() -> Self {
         Self {
-            par_min_distance: ParameterPort::with_value(Distance::meters(1.0)),
+            par_min_distance: ParameterPort::with_value(Distance::meters(1.5)),
             obstacle_detected: false,
             ..Default::default()
         }
@@ -20,7 +20,7 @@ impl Module for BreakOnObstacle {
 
     fn transfere(&mut self) {
         let distance = self.in_distance.get_or_default();
-        if distance < Distance::centimeters(20.0) {
+        if distance < self.par_min_distance.get() / 4.0 {
             self.out_velocity.send(Velocity::meters_per_second(0.0));
         } else if distance < *self.par_min_distance.get() {
             let speed_factor = (self.par_min_distance.get() / distance).inverse();

@@ -150,7 +150,7 @@ fn vitrual_sensor_to_mouse_circle(
     radius: Distance
 ) -> Distance {
     let direction_vec = orientation.as_unit_vector();
-    let inc_distance = Distance::centimeters(10.0);
+    let inc_distance = Distance::centimeters(5.0);
     let inc_vector = direction_vec * inc_distance;
     let mut sensor_pos = position + inc_vector;
     let mut wall_distance = Distance::ZERO;
@@ -168,7 +168,7 @@ fn virtual_sensor_to_wall(position: Vector2<Distance>, orientation: Rotation2D, 
     let canvas_bottom_left= Vector2::new(Distance::centimeters(canvas_size.left() as f64), Distance::centimeters(canvas_size.bottom() as f64));
 
     let direction_vec = orientation.as_unit_vector();
-    let inc_distance = Distance::centimeters(10.0);
+    let inc_distance = Distance::centimeters(5.0);
     let inc_vector = direction_vec * inc_distance;
     let mut sensor_pos = position + inc_vector;
     let mut wall_distance = Distance::ZERO;
