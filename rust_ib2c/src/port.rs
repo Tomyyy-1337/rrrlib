@@ -14,9 +14,6 @@ macro_rules! SerializePortData {
             }
         }
     };
-    () => {
-        
-    };
 }
 
 SerializePortData!(i32, |v: &i32| PortData::Int(*v as i64));

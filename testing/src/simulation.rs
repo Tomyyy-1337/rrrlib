@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use nannou::{color::*, event::Update, geom::Rect, glam::Vec2, lyon::geom::euclid::approxord::min, window, App, Frame};
+use nannou::{color::*, event::Update, geom::Rect, glam::Vec2, window, App, Frame};
 use rust_ib2c::{prelude::*, SpawnMainGroup};
 use data_types::prelude::*;
 

@@ -112,7 +112,7 @@ where
                 }
 
                 if elapsed < self.cycle_time {
-                    std::thread::sleep(self.cycle_time - elapsed);
+                    spin_sleep::sleep(self.cycle_time - elapsed);
                 } 
             }
         });

@@ -124,8 +124,8 @@ where
                     source: self.parent.path.clone(),
                     activity: *self.activity.get().unwrap_or(MetaSignal::HIGH),
                     target_rating: *self.target_rating.get().unwrap_or(MetaSignal::LOW),
-                    stimulation: 0.0,
-                    inhibition: 0.0,
+                    stimulation: *self.get_stimulation().unwrap_or(MetaSignal::HIGH),
+                    inhibition: *self.get_inhibition().unwrap_or(MetaSignal::LOW),
                     data: port_data
                 };
                 self.parent.tcp_server.send(shared_data);
@@ -138,7 +138,7 @@ where
                 }
 
                 if elapsed < self.cycle_time {
-                    std::thread::sleep(self.cycle_time - elapsed);
+                    spin_sleep::sleep(self.cycle_time - elapsed);
                 }
             }
         });

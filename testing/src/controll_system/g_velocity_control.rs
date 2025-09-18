@@ -1,5 +1,4 @@
 use std::time::Duration;
-
 use rust_ib2c::prelude::*;
 use data_types::si_units::*;
 
