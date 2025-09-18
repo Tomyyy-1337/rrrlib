@@ -204,11 +204,11 @@ pub fn ports(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 &self.target_rating
             }
 
-            fn get_stimulation(&self) -> Option<&MetaSignal> {
+            fn get_stimulation(&self) -> Option<MetaSignal> {
                 self.stimulation.get()
             }
 
-            fn get_inhibition(&self) -> Option<&MetaSignal> {
+            fn get_inhibition(&self) -> Option<MetaSignal> {
                 self.inhibition.get()
             }
 

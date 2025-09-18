@@ -48,21 +48,21 @@ where
     }
 }
 
-struct PortBuffer<T: Clone + PortSerialization> {
-    buffer: Option<T>,
+struct PortBuffer<T: PortSerialization> {
+    buffer: Option<Arc<T>>,
 }
 
-enum PortMode<T: Clone + PortSerialization> {
+enum PortMode<T: PortSerialization> {
     Buffer(PortBuffer<T>),
     Passthrough(Port<T>),
 }
 
 /// Internal port structure used by [`SendPort`] and [`ReceivePort`]
-pub struct Port<T: Clone + PortSerialization> {
+pub struct Port<T: PortSerialization> {
     mode: Arc<RwLock<PortMode<T>>>,
 }
 
-impl<T: Clone + PortSerialization> Clone for Port<T> {
+impl<T: PortSerialization> Clone for Port<T> {
     fn clone(&self) -> Self {
         Self {
             mode: Arc::clone(&self.mode),
@@ -70,7 +70,7 @@ impl<T: Clone + PortSerialization> Clone for Port<T> {
     }
 }
 
-impl<T: Clone + PortSerialization> Port<T> {
+impl<T: PortSerialization> Port<T> {
     fn send(&self, data: T) {
         if let PortMode::Passthrough(source_port) = &*self.mode.read().unwrap() {
             source_port.send(data);
@@ -78,41 +78,51 @@ impl<T: Clone + PortSerialization> Port<T> {
         }
         let mut writer = self.mode.write().unwrap();
         *writer = PortMode::Buffer(PortBuffer {
-            buffer: Some(data),
+            buffer: Some(Arc::new(data)),
         });
     }
 
-    fn get(&self) -> Option<T> {
+    fn get(&self) -> Option<T> 
+    where 
+        T: Clone,
+    {
         match &*self.mode.read().unwrap() {
-            PortMode::Buffer(buffer) => buffer.buffer.clone(),
+            PortMode::Buffer(buffer) => buffer.buffer.as_ref().map(|data| (*data.as_ref()).clone()),
             PortMode::Passthrough(source_port) => source_port.get(),
         }
     }
-
+    
     fn get_or_default(&self) -> T
     where
-        T: Default,
+        T: Default + Clone,
     {
         self.get().unwrap_or_default()
     }
 
+    fn get_reference(&self) -> Option<Arc<T>> {
+        match &*self.mode.read().unwrap() {
+            PortMode::Buffer(buffer) => buffer.buffer.as_ref().map(Arc::clone),
+            PortMode::Passthrough(source_port) => source_port.get_reference(),
+        }
+    }
+    
     fn connect_to_source(&self, source: &Port<T>) {
         *self.mode.write().unwrap() = PortMode::Passthrough(source.clone());
     }
 } 
 
 /// Sending port used to send data to connected [`ReceivePort`]s
-pub struct SendPort<T: Clone + PortSerialization> {
+pub struct SendPort<T: PortSerialization> {
     inner: Port<T>,
 }
 
 /// Receiving port used to receive data from a connected [`SendPort`]
-pub struct ReceivePort<T: Clone + PortSerialization> {
+pub struct ReceivePort<T: PortSerialization> {
     inner: Port<T>,
-    buffer: Option<T>,
+    buffer: Option<Arc<T>>,
 }
 
-impl<T: Clone + PortSerialization> Deref for SendPort<T> {
+impl<T: PortSerialization> Deref for SendPort<T> {
     type Target = Port<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -120,7 +130,7 @@ impl<T: Clone + PortSerialization> Deref for SendPort<T> {
     }
 }
 
-impl<T: Clone + PortSerialization> Deref for ReceivePort<T> {
+impl<T: PortSerialization> Deref for ReceivePort<T> {
     type Target = Port<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -128,7 +138,7 @@ impl<T: Clone + PortSerialization> Deref for ReceivePort<T> {
     }
 }
 
-impl<T: Clone + PortSerialization> Default for SendPort<T> {
+impl<T: PortSerialization> Default for SendPort<T> {
     fn default() -> Self {
         Self {
             inner: Port {
@@ -137,7 +147,7 @@ impl<T: Clone + PortSerialization> Default for SendPort<T> {
         }
     }
 }
-impl<T: Clone + PortSerialization> Clone for SendPort<T> {
+impl<T: PortSerialization> Clone for SendPort<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -145,7 +155,7 @@ impl<T: Clone + PortSerialization> Clone for SendPort<T> {
     }
 }
 
-impl<T: Clone + PortSerialization> Default for ReceivePort<T> {
+impl<T: PortSerialization> Default for ReceivePort<T> {
     fn default() -> Self {
         Self {
             inner: Port {
@@ -156,7 +166,7 @@ impl<T: Clone + PortSerialization> Default for ReceivePort<T> {
     }
 }
 
-impl<T: Clone + PortSerialization> Clone for ReceivePort<T> {
+impl<T: PortSerialization> Clone for ReceivePort<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -165,7 +175,7 @@ impl<T: Clone + PortSerialization> Clone for ReceivePort<T> {
     }
 }
 
-impl<T: Clone + PortSerialization> SendPort<T> {
+impl<T: PortSerialization> SendPort<T> {
     /// Send data to connected [`ReceivePort`]s
     pub fn send(&self, data: T) {
         self.inner.send(data);
@@ -182,20 +192,27 @@ impl<T: Clone + PortSerialization> SendPort<T> {
     }
 
     /// Get the last sent data 
-    pub fn get(&self) -> Option<T> {
+    pub fn get(&self) -> Option<T> 
+    where 
+        T: Clone,
+    {
         self.inner.get()
     }
 
     /// Get the last sent data or a default value if no data was sent yet
     pub fn get_or_default(&self) -> T
     where
-        T: Default,
+        T: Default + Clone,
     {
-        self.inner.get_or_default()
+        self.get().unwrap_or_default()
+    }
+
+    pub fn get_arc(&self) -> Option<Arc<T>> {
+        self.inner.get_reference()
     }
 }
 
-impl<T: Clone + PortSerialization> ReceivePort<T> {
+impl<T: PortSerialization> ReceivePort<T> {
     /// Connect this [`ReceivePort`] to a source [`Port`] ([`SendPort`] or [`ReceivePort`])
     pub fn connect_to_source(&self, source: &Port<T>) {
         self.inner.connect_to_source(source);
@@ -210,29 +227,40 @@ impl<T: Clone + PortSerialization> ReceivePort<T> {
     /// Is called automatically when used inside a [`BehaviorModule`][`crate::behavior_module::BehaviorModule`]
     /// and does not need to be called manually.
     pub fn update(&mut self) {
-        self.buffer = self.inner.get();
+        self.buffer = self.inner.get_reference();
     }
 
     /// Get the last received data from the internal buffer
-    pub fn get(&self) -> Option<&T> {
-        self.buffer.as_ref()
+    pub fn get(&self) -> Option<T> 
+    where 
+        T: Clone,
+    {
+        self.buffer.as_deref().cloned()
     }
 
     pub fn get_or_default(&self) -> T
     where
-        T: Default,
+        T: Default + Clone,
     {
-        self.inner.get_or_default()
+        self.get().unwrap_or_default()
+    }
+
+    pub fn get_reference(&self) -> Option<&T> {
+        self.buffer.as_deref()
+    }
+
+    pub fn get_arc(&self) -> Option<Arc<T>> {
+        self.buffer.as_ref().map(Arc::clone)
     }
 }
 
 
-pub struct ParameterPort<T: Clone + PortSerialization> {
+pub struct ParameterPort<T: PortSerialization> {
     inner: Port<T>,
-    buffer: T,
+    buffer: Arc<T>,
 }
 
-impl<T: Clone + Default + PortSerialization> ParameterPort<T> {
+impl<T: Default + PortSerialization> ParameterPort<T> {
     // Set the parameter value.
     pub fn set(&self, data: T) {
         self.inner.send(data);
@@ -240,11 +268,12 @@ impl<T: Clone + Default + PortSerialization> ParameterPort<T> {
 
     /// Create a new ParameterPort with an initial value
     pub fn with_value(value: T) -> Self {
+        let val = Arc::new(value);
         Self {
             inner: Port {
-                mode: Arc::new(RwLock::new(PortMode::Buffer(PortBuffer { buffer: Some(value.clone()) }))),
+                mode: Arc::new(RwLock::new(PortMode::Buffer(PortBuffer { buffer: Some(val.clone()) }))),
             },
-            buffer: value,
+            buffer: val,
         }
     }
 
@@ -252,22 +281,30 @@ impl<T: Clone + Default + PortSerialization> ParameterPort<T> {
     /// Is called automatically when used inside a [`BehaviorModule`][`crate::behavior_module::BehaviorModule`]
     /// and does not need to be called manually.
     pub fn update(&mut self) {
-        self.buffer = self.inner.get().unwrap_or_default();
+        self.buffer = self.inner.get_reference().unwrap_or_else(|| Arc::new(T::default()));
     }
 
     /// Get the current parameter value from the internal buffer
-    pub fn get(&self) -> &T {
-        &self.buffer
+    pub fn get(&self) -> T 
+    where 
+        T: Clone,
+    {
+        (*self.buffer).clone()
+    }
+
+    pub fn get_reference(&self) -> &T {
+        self.buffer.deref()
     }
 }
 
 impl<T: Clone + Default + PortSerialization> Default for ParameterPort<T> {
     fn default() -> Self {
+        let val = Arc::new(T::default());
         Self {
             inner: Port { 
-                mode: Arc::new(RwLock::new(PortMode::Buffer(PortBuffer { buffer: Some(T::default()) }))),
+                mode: Arc::new(RwLock::new(PortMode::Buffer(PortBuffer { buffer: Some(val.clone()) }))),
             },
-            buffer: T::default(),
+            buffer: val,
         }
     }
 }
@@ -333,7 +370,7 @@ mod tests {
         assert_eq!(receive_port.get(), None);
         send_port.send(42);
         receive_port.update();
-        assert_eq!(receive_port.get(), Some(&42));
+        assert_eq!(receive_port.get(), Some(42));
     }
 
     #[test]
@@ -349,8 +386,8 @@ mod tests {
         receive_port1.update();
         receive_port2.update();
 
-        assert_eq!(receive_port1.get(), Some(&42));
-        assert_eq!(receive_port2.get(), Some(&42));
+        assert_eq!(receive_port1.get(), Some(42));
+        assert_eq!(receive_port2.get(), Some(42));
     }
 
     #[test]
@@ -365,7 +402,7 @@ mod tests {
         send_port1.send(42);
         receive_port.update();
 
-        assert_eq!(receive_port.get(), Some(&42));
+        assert_eq!(receive_port.get(), Some(42));
     }
 
     #[test]
@@ -387,9 +424,9 @@ mod tests {
         receive_port1.update();
         receive_port2.update();
         receive_port3.update();
-        assert_eq!(receive_port1.get(), Some(&42));
-        assert_eq!(receive_port2.get(), Some(&42));
-        assert_eq!(receive_port3.get(), Some(&42));
+        assert_eq!(receive_port1.get(), Some(42));
+        assert_eq!(receive_port2.get(), Some(42));
+        assert_eq!(receive_port3.get(), Some(42));
         assert_eq!(send_port3.get(), Some(42));
         assert_eq!(send_port2.get(), Some(42));
         assert_eq!(send_port1.get(), Some(42));

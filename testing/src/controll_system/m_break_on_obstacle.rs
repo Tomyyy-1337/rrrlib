@@ -22,7 +22,7 @@ impl Module for BreakOnObstacle {
         let distance = self.in_distance.get_or_default();
         if distance < self.par_min_distance.get() / 4.0 {
             self.out_velocity.send(Velocity::meters_per_second(0.0));
-        } else if distance < *self.par_min_distance.get() {
+        } else if distance < self.par_min_distance.get() {
             let speed_factor = (self.par_min_distance.get() / distance).inverse();
             self.out_velocity.send(Velocity::meters_per_second(1.0) * speed_factor);
             self.obstacle_detected = true;

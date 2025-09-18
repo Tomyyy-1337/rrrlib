@@ -71,8 +71,8 @@ where
                 self.transfere();
                 let target_rating = self.module.target_rating();
 
-                let stimulation = *self.module.get_stimulation().unwrap_or(&MetaSignal::HIGH);
-                let inhibition = *self.get_inhibition().unwrap_or(&MetaSignal::LOW);
+                let stimulation = self.module.get_stimulation().unwrap_or(MetaSignal::HIGH);
+                let inhibition = self.get_inhibition().unwrap_or(MetaSignal::LOW);
                 let potential = MetaSignal::min(
                     stimulation, 
                     MetaSignal::HIGH - inhibition

@@ -47,8 +47,8 @@ pub trait MetaSignals {
     fn get_activity(&self) -> Option<MetaSignal>;
     fn set_target_rating(&mut self, target_rating: MetaSignal);
     fn get_target_rating(&self) -> Option<MetaSignal>;
-    fn get_stimulation(&self) -> Option<&MetaSignal>;
-    fn get_inhibition(&self) -> Option<&MetaSignal>;
+    fn get_stimulation(&self) -> Option<MetaSignal>;
+    fn get_inhibition(&self) -> Option<MetaSignal>;
     fn get_activity_port(&self) -> &SendPort<MetaSignal>;
     fn get_target_rating_port(&self) -> &SendPort<MetaSignal>;
     fn get_stimulation_port(&mut self) -> &ReceivePort<MetaSignal>;

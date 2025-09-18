@@ -44,7 +44,7 @@ where
         for (index, (data_port, activity_port)) in self.data_ports.iter().zip(self.activitys.iter()).enumerate() {
             if let Some(data) = data_port.get() && let Some(activity) = activity_port.get() {
                 port_data.push((format!("data_port_{}", index), data.serialize_port_data()));
-                port_data.push((format!("activity_{}", index), PortData::MetaSignal(**activity)));
+                port_data.push((format!("activity_{}", index), PortData::MetaSignal(*activity)));
             }
         }
         if let Some(output) = self.output.get() {
@@ -76,8 +76,8 @@ where
         
         for (index, activity_port) in self.activitys.iter().enumerate() {
             if let Some(activity) = activity_port.get() {
-                if activity > &max_activity {
-                    max_activity = *activity;
+                if activity > max_activity {
+                    max_activity = activity;
                     best_data = self.data_ports[index].get();
                     best_index = index;
                 }
@@ -85,7 +85,7 @@ where
         }
 
         if let Some(data) = best_data {
-            let target_rating = self.target_ratings[best_index].get().cloned().unwrap_or(MetaSignal::LOW);
+            let target_rating = self.target_ratings[best_index].get().unwrap_or(MetaSignal::LOW);
             Some((max_activity, target_rating, data.clone()))
         } else {
             None

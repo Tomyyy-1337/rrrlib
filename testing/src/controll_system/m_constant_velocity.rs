@@ -16,7 +16,7 @@ impl Module for ConstantVelocity {
     }
 
     fn transfere(&mut self) {
-        let velocity = *self.par_velocity.get();
+        let velocity = self.par_velocity.get();
         self.out_velocity.send(velocity);
     }
 
